@@ -28,25 +28,27 @@ body.bg-image {
     left: 0;
     right: 0;
     height: 60px;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(15, 23, 42, 0.95);
     color: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 24px;
     z-index: 1000;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .time-display {
-    font-size: 2em;
-    font-weight: 300;
-    letter-spacing: 2px;
+    font-size: 1.75em;
+    font-weight: 400;
+    letter-spacing: 0.025em;
 }
 
 .date-display {
-    font-size: 1.2em;
-    opacity: 0.8;
+    font-size: 1em;
+    opacity: 0.85;
+    font-weight: 400;
 }
 
 /* Display Grid */
@@ -57,17 +59,16 @@ body.bg-image {
     right: 0;
     bottom: 0;
     display: grid;
-    gap: 2px;
-    padding: 2px;
-    background: transparent; /* Ensure grid is transparent */
+    gap: 4px;
+    padding: 4px;
+    background: transparent;
 }
 
 /* Zone Styles */
 .player-zone {
     position: relative;
     overflow: hidden;
-    border-radius: 8px;
-    /* Remove default background - let zones control their own backgrounds */
+    border-radius: 6px;
 }
 
 .zone-content {
