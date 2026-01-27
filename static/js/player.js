@@ -112,11 +112,14 @@ function setupGrid() {
 
 function createZone(zone, index) {
     console.log('Creating zone', index, 'with type:', zone.type, 'zone data:', zone);
-    
+
     const zoneElement = document.createElement('div');
     zoneElement.className = 'player-zone';
     zoneElement.style.opacity = zone.opacity || 1.0;
     zoneElement.id = `zone-${index}`;
+
+    // Add staggered animation delay for entrance effect
+    zoneElement.style.animationDelay = `${index * 0.1}s`;
     
     // Apply zone background - if transparent, make sure zone is truly transparent
     if (zone.background && zone.background.type === 'transparent') {
@@ -129,7 +132,10 @@ function createZone(zone, index) {
     
     const contentElement = document.createElement('div');
     contentElement.className = 'zone-content';
-    
+
+    // Add staggered animation delay for content entrance
+    contentElement.style.animationDelay = `${index * 0.1 + 0.15}s`;
+
     // For transparent zones, make content transparent too
     if (zone.background && zone.background.type === 'transparent') {
         contentElement.style.background = 'transparent';
@@ -416,11 +422,9 @@ function createSlideshowWidget(container, content, index) {
         // Create slideshow container
         container.innerHTML = `
             <div class="slideshow-container" id="slideshow-${index}">
-                <img class="slideshow-image" 
-                     style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; opacity: 0; transition: opacity 0.5s ease-in-out;" 
-                     alt="Slideshow Image" />
-                <div class="slideshow-timer-indicator" style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: none;">
-                    ${slideTimer / 1000}s
+                <img class="slideshow-image" alt="Slideshow Image" />
+                <div class="slideshow-timer-indicator" style="display: none; opacity: 0;">
+                    <span>${slideTimer / 1000}s</span>
                 </div>
             </div>
         `;
@@ -491,39 +495,41 @@ function updateClock() {
 
 function startTimer(index, totalSeconds) {
     let remainingSeconds = totalSeconds;
-    
+    const warningThreshold = Math.min(60, totalSeconds * 0.2); // 20% or 60 seconds
+    const dangerThreshold = Math.min(10, totalSeconds * 0.05); // 5% or 10 seconds
+
     const updateTimer = () => {
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
         const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
+
         const timerElement = document.getElementById(`timer-${index}`);
         if (timerElement) {
             timerElement.textContent = display;
-            
+
+            // Update visual state based on remaining time
+            timerElement.classList.remove('timer-warning', 'timer-danger');
+            if (remainingSeconds <= dangerThreshold && remainingSeconds > 0) {
+                timerElement.classList.add('timer-danger');
+            } else if (remainingSeconds <= warningThreshold && remainingSeconds > 0) {
+                timerElement.classList.add('timer-warning');
+            }
+
             if (remainingSeconds <= 0) {
-                timerElement.style.color = '#e74c3c';
+                timerElement.classList.add('timer-danger');
                 timerElement.textContent = '00:00';
                 clearInterval(timerIntervals[index]);
-                
-                // Flash effect when timer ends
-                let flashCount = 0;
-                const flashInterval = setInterval(() => {
-                    timerElement.style.opacity = timerElement.style.opacity === '0.3' ? '1' : '0.3';
-                    flashCount++;
-                    if (flashCount >= 10) {
-                        clearInterval(flashInterval);
-                        timerElement.style.opacity = '1';
-                    }
-                }, 300);
-                
+
+                // Pulse effect when timer ends
+                timerElement.style.animation = 'timerPulse 0.5s ease-in-out infinite';
+
                 return;
             }
         }
-        
+
         remainingSeconds--;
     };
-    
+
     updateTimer();
     timerIntervals[index] = setInterval(updateTimer, 1000);
 }
@@ -533,22 +539,31 @@ function startSlideshow(index, images, slideTimer = 5000) {
     const slideshowContainer = document.getElementById(`slideshow-${index}`);
     const imageElement = slideshowContainer.querySelector('.slideshow-image');
     const timerIndicator = slideshowContainer.querySelector('.slideshow-timer-indicator');
-    
+
     if (!imageElement || images.length === 0) return;
-    
+
+    // Set transition for smooth crossfade
+    imageElement.style.transition = 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+
     const showNextImage = () => {
+        // Fade out
         imageElement.style.opacity = '0';
-        
+
         setTimeout(() => {
             imageElement.src = images[currentImageIndex];
             imageElement.onload = () => {
+                // Fade in
                 imageElement.style.opacity = '1';
                 // Show timer indicator briefly when image changes (only if multiple images)
                 if (images.length > 1 && timerIndicator) {
                     timerIndicator.style.display = 'block';
+                    timerIndicator.style.opacity = '1';
                     setTimeout(() => {
-                        timerIndicator.style.display = 'none';
-                    }, 2000); // Show for 2 seconds
+                        timerIndicator.style.opacity = '0';
+                        setTimeout(() => {
+                            timerIndicator.style.display = 'none';
+                        }, 300);
+                    }, 1500);
                 }
             };
             imageElement.onerror = () => {
@@ -558,14 +573,14 @@ function startSlideshow(index, images, slideTimer = 5000) {
                 setTimeout(showNextImage, 100);
                 return;
             };
-            
+
             currentImageIndex = (currentImageIndex + 1) % images.length;
-        }, 250); // Half of transition time
+        }, 400); // Transition time
     };
-    
+
     // Show first image immediately
     showNextImage();
-    
+
     // Only start interval if there are multiple images
     if (images.length > 1) {
         slideshowIntervals[index] = setInterval(showNextImage, slideTimer);

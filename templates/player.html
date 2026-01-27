@@ -4,58 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ display[1] }} - Digital Signage Player</title>
+
+    <!-- Google Fonts - Inter for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/player.css') }}">
-    <style>
-        /* Fallback styles for debugging */
-        body { 
-            margin: 0; 
-            padding: 0; 
-            color: white; 
-            font-family: Arial, sans-serif;
-        }
-        .top-bar { 
-            height: 60px; 
-            background: rgba(0,0,0,0.8); 
-            color: white; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 20px; 
-        }
-        .display-grid { 
-            position: absolute; 
-            top: 60px; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background: transparent; 
-            display: grid; 
-            gap: 2px; 
-            padding: 2px; 
-        }
-    </style>
 </head>
 <body>
     <!-- Top Bar with Date/Time -->
-    <div id="topBar" class="top-bar">
-        <div id="currentTime" class="time-display"></div>
-        <div id="currentDate" class="date-display"></div>
-    </div>
-    
+    <header id="topBar" class="top-bar">
+        <div class="top-bar-left">
+            <div id="currentTime" class="time-display">--:--:--</div>
+        </div>
+        <div class="top-bar-right">
+            <div id="currentDate" class="date-display">Loading...</div>
+        </div>
+    </header>
+
     <!-- Main Display Grid -->
-    <div id="displayGrid" class="display-grid">
+    <main id="displayGrid" class="display-grid">
         <!-- Zones will be generated here by JavaScript -->
-    </div>
-    
+    </main>
+
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/player.js') }}"></script>
     <script>
         try {
             // Initialize player with display configuration
             const displayConfig = {{ display_data|tojson }};
-            
+
             console.log('Display config from template:', displayConfig);
-            
+
             // Adapt the config format for the player
             const playerConfig = {
                 id: displayConfig.id,
@@ -63,14 +44,14 @@
                 layout: displayConfig.layout_config,
                 background: displayConfig.background_config
             };
-            
+
             window.addEventListener('DOMContentLoaded', function() {
                 initializePlayer(playerConfig);
             });
         } catch (error) {
             console.error('Error initializing player:', error);
-            document.getElementById('displayGrid').innerHTML = 
-                '<div style="color: red; padding: 20px;">JavaScript Error: ' + error.message + '</div>';
+            document.getElementById('displayGrid').innerHTML =
+                '<div style="color: #ef4444; padding: 40px; text-align: center; font-size: 1.25rem;">Error: ' + error.message + '</div>';
         }
     </script>
 </body>
