@@ -14,6 +14,12 @@ function initializeConfig(displayId, layoutConfig, backgroundConfig) {
     document.getElementById('gridRows').value = layoutConfig.grid.rows;
     document.getElementById('gridCols').value = layoutConfig.grid.cols;
     document.getElementById('globalFont').value = layoutConfig.global_font || 'Arial, sans-serif';
+
+    // Set top bar settings
+    const topBar = layoutConfig.top_bar || {mode: 'visible', show_seconds: true};
+    currentLayout.top_bar = topBar;
+    document.getElementById('topBarMode').value = topBar.mode;
+    document.getElementById('topBarShowSeconds').checked = topBar.show_seconds !== false;
     
     // Set background
     if (backgroundConfig.type === 'color') {
@@ -41,7 +47,11 @@ function bindEvents() {
     document.getElementById('gridRows').addEventListener('change', generateGrid);
     document.getElementById('gridCols').addEventListener('change', generateGrid);
     document.getElementById('globalFont').addEventListener('change', updateGlobalFont);
-    
+
+    // Top bar changes
+    document.getElementById('topBarMode').addEventListener('change', updateTopBar);
+    document.getElementById('topBarShowSeconds').addEventListener('change', updateTopBar);
+
     // Background type changes
     document.querySelectorAll('input[name="bgType"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -214,6 +224,21 @@ function openZoneModal(zoneId) {
         document.getElementById('dateFormat').value = zone.date_format;
     }
     
+    // Set announcement settings
+    document.getElementById('announcementMode').value = zone.announcement_mode || 'static';
+    document.getElementById('announcementInterval').value = zone.announcement_interval || 5;
+
+    // Set RSS settings
+    document.getElementById('rssMode').value = zone.rss_mode || 'list';
+    document.getElementById('rssInterval').value = zone.rss_interval || 5;
+
+    // Set weather settings
+    document.getElementById('weatherLocation').value = zone.weather_location || '';
+    document.getElementById('weatherUnits').value = zone.weather_units || 'C';
+    document.getElementById('weatherRefresh').value = zone.weather_refresh || 30;
+    document.getElementById('weatherLat').value = zone.weather_lat || '';
+    document.getElementById('weatherLon').value = zone.weather_lon || '';
+
     // Set background
     const bg = zone.background || {type: 'transparent'};
     document.querySelector(`input[name="zoneBgType"][value="${bg.type}"]`).checked = true;
@@ -247,10 +272,17 @@ function updateZoneContentUI() {
     const contentLabel = document.getElementById('zoneContentLabel');
     const contentHelp = document.getElementById('contentHelp');
     const clockSettings = document.getElementById('clockSettings');
-    
-    // Hide clock settings by default
+
+    const announcementSettings = document.getElementById('announcementSettings');
+    const rssSettings = document.getElementById('rssSettings');
+    const weatherSettings = document.getElementById('weatherSettings');
+
+    // Hide all type-specific settings by default
     clockSettings.style.display = 'none';
-    
+    announcementSettings.style.display = 'none';
+    rssSettings.style.display = 'none';
+    weatherSettings.style.display = 'none';
+
     switch (zoneType) {
         case 'empty':
             contentGroup.style.display = 'none';
@@ -267,7 +299,8 @@ function updateZoneContentUI() {
         case 'announcement':
             contentGroup.style.display = 'block';
             contentLabel.textContent = 'Announcement Text';
-            contentHelp.textContent = 'Enter the text to display in this zone';
+            contentHelp.textContent = 'Enter the text to display. Use separate lines for multiple announcements (crossfade/marquee modes).';
+            announcementSettings.style.display = 'block';
             break;
         case 'iframe':
             contentGroup.style.display = 'block';
@@ -278,6 +311,7 @@ function updateZoneContentUI() {
             contentGroup.style.display = 'block';
             contentLabel.textContent = 'RSS Feed URL';
             contentHelp.textContent = 'Enter the URL of the RSS feed to display';
+            rssSettings.style.display = 'block';
             break;
         case 'image':
             contentGroup.style.display = 'block';
@@ -293,6 +327,10 @@ function updateZoneContentUI() {
             contentGroup.style.display = 'block';
             contentLabel.textContent = 'Slideshow Configuration';
             contentHelp.textContent = 'Format: "timer_seconds:image1.jpg" or just list images. First line can be "8:" to set 8-second timer. Example:\n8:\nimage1.jpg\nimage2.jpg\nOr:\n3:first image.jpg\nsecond image.jpg';
+            break;
+        case 'weather':
+            contentGroup.style.display = 'none';
+            weatherSettings.style.display = 'block';
             break;
     }
 }
@@ -315,7 +353,28 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
         zone.time_format = document.getElementById('timeFormat').value;
         zone.date_format = document.getElementById('dateFormat').value;
     }
-    
+
+    // Announcement settings
+    if (zone.type === 'announcement') {
+        zone.announcement_mode = document.getElementById('announcementMode').value;
+        zone.announcement_interval = parseInt(document.getElementById('announcementInterval').value) || 5;
+    }
+
+    // RSS settings
+    if (zone.type === 'rss') {
+        zone.rss_mode = document.getElementById('rssMode').value;
+        zone.rss_interval = parseInt(document.getElementById('rssInterval').value) || 5;
+    }
+
+    // Weather settings
+    if (zone.type === 'weather') {
+        zone.weather_location = document.getElementById('weatherLocation').value;
+        zone.weather_units = document.getElementById('weatherUnits').value;
+        zone.weather_refresh = parseInt(document.getElementById('weatherRefresh').value) || 30;
+        zone.weather_lat = document.getElementById('weatherLat').value;
+        zone.weather_lon = document.getElementById('weatherLon').value;
+    }
+
     // Background
     const bgType = document.querySelector('input[name="zoneBgType"]:checked').value;
     zone.background = {type: bgType};
@@ -367,6 +426,13 @@ function updateGlobalFont() {
     currentLayout.global_font = globalFont;
 }
 
+function updateTopBar() {
+    currentLayout.top_bar = {
+        mode: document.getElementById('topBarMode').value,
+        show_seconds: document.getElementById('topBarShowSeconds').checked
+    };
+}
+
 function updateZoneBackgroundUI() {
     const bgType = document.querySelector('input[name="zoneBgType"]:checked').value;
     
@@ -386,6 +452,36 @@ function updateZoneBackgroundUI() {
         case 'image':
             document.getElementById('zoneBgImage').style.display = 'block';
             break;
+    }
+}
+
+async function searchWeatherLocation() {
+    const locationInput = document.getElementById('weatherLocation');
+    const name = locationInput.value.trim();
+    if (!name) return;
+
+    try {
+        const response = await fetch(`/api/geocode?name=${encodeURIComponent(name)}`);
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Geocode error: ' + data.error);
+            return;
+        }
+
+        if (!data.results || data.results.length === 0) {
+            alert('No locations found for "' + name + '"');
+            return;
+        }
+
+        // Use first result, or let user pick if multiple
+        const r = data.results[0];
+        document.getElementById('weatherLat').value = r.latitude;
+        document.getElementById('weatherLon').value = r.longitude;
+        const displayName = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+        locationInput.value = displayName;
+    } catch (error) {
+        alert('Search error: ' + error.message);
     }
 }
 

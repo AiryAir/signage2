@@ -73,6 +73,29 @@ body.bg-image {
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
+/* Top bar mode: overlay — semi-transparent, grid starts at top */
+.top-bar--overlay {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+/* Top bar mode: auto-hide — hidden by default, slides in near top edge */
+.top-bar--auto-hide {
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.top-bar--auto-hide.top-bar--shown {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* Top bar mode: hidden — completely removed */
+.top-bar--hidden {
+    display: none;
+}
+
 .top-bar::before {
     content: '';
     position: absolute;
@@ -102,6 +125,32 @@ body.bg-image {
     text-shadow: 0 0 40px rgba(255,255,255,0.1);
 }
 
+.time-display .clock-hours,
+.time-display .clock-minutes {
+    font-variant-numeric: tabular-nums;
+}
+
+.time-display .clock-separator {
+    animation: separatorBlink 1s step-end infinite;
+    margin: 0 1px;
+}
+
+.time-display .clock-seconds {
+    font-size: 0.55em;
+    opacity: 0.7;
+    vertical-align: super;
+    margin-left: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.time-display .clock-ampm {
+    font-size: 0.45em;
+    opacity: 0.6;
+    margin-left: 6px;
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+
 .date-display {
     font-size: 1.1rem;
     font-weight: 400;
@@ -122,6 +171,12 @@ body.bg-image {
     gap: var(--zone-gap);
     padding: var(--zone-gap);
     background: transparent;
+    transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Grid gets full viewport when top bar is overlay/hidden/auto-hide */
+.display-grid--full {
+    top: 0;
 }
 
 /* ==========================================
@@ -138,11 +193,11 @@ body.bg-image {
 @keyframes zoneAppear {
     from {
         opacity: 0;
-        transform: scale(0.95);
+        transform: scale(0.95) translateY(12px);
     }
     to {
-        opacity: 1;
-        transform: scale(1);
+        opacity: var(--zone-opacity, 1);
+        transform: scale(1) translateY(0);
     }
 }
 
@@ -233,6 +288,32 @@ body.bg-image {
     50% { opacity: 0.95; }
 }
 
+.clock-time .clock-hours,
+.clock-time .clock-minutes {
+    font-variant-numeric: tabular-nums;
+}
+
+.clock-time .clock-separator {
+    animation: separatorBlink 1s step-end infinite;
+    margin: 0 2px;
+}
+
+.clock-time .clock-seconds {
+    font-size: 0.5em;
+    opacity: 0.6;
+    vertical-align: super;
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.clock-time .clock-ampm {
+    font-size: 0.4em;
+    opacity: 0.55;
+    margin-left: 8px;
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+
 .clock-date {
     font-size: clamp(0.9rem, 2vw, 1.25rem);
     font-weight: 400;
@@ -300,18 +381,22 @@ body.bg-image {
     letter-spacing: 0.15em;
 }
 
-/* Timer progress ring (optional enhancement) */
-.timer-progress {
-    position: absolute;
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    background: conic-gradient(
-        var(--accent-color) var(--progress, 100%),
-        rgba(255,255,255,0.1) var(--progress, 100%)
-    );
-    opacity: 0.3;
-    filter: blur(2px);
+/* Timer progress bar */
+.timer-progress-container {
+    width: 80%;
+    max-width: 300px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin-top: 16px;
+    overflow: hidden;
+}
+
+.timer-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s linear, background-color 0.5s ease;
+    background-color: var(--success-color);
 }
 
 /* ==========================================
@@ -348,6 +433,57 @@ body.bg-image {
 
 @keyframes scrollText {
     0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* Announcement crossfade carousel */
+.announcement-carousel {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.announcement-slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    font-size: clamp(1.25rem, 3vw, 2rem);
+    line-height: 1.5;
+    font-weight: 400;
+    text-align: center;
+    text-wrap: balance;
+}
+
+.announcement-slide.active {
+    opacity: 1;
+}
+
+/* Announcement marquee */
+.announcement-marquee {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.announcement-marquee-inner {
+    display: inline-block;
+    white-space: nowrap;
+    animation: marqueeScroll var(--marquee-duration, 20s) linear infinite;
+    font-size: clamp(1.25rem, 3vw, 2rem);
+    font-weight: 400;
+    padding-left: 100%;
+}
+
+@keyframes marqueeScroll {
+    0% { transform: translateX(0); }
     100% { transform: translateX(-100%); }
 }
 
@@ -472,6 +608,180 @@ body.bg-image {
     text-align: center;
     padding: 40px;
     color: var(--danger-color);
+    font-size: 1rem;
+}
+
+/* RSS rotate mode — single item crossfade */
+.rss-single-item {
+    position: relative;
+    width: 100%;
+    flex: 1;
+}
+
+.rss-single-item .rss-item {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.rss-single-item .rss-item.active {
+    opacity: 1;
+}
+
+/* RSS ticker mode — horizontal scroll */
+.rss-ticker {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+
+.rss-ticker-inner {
+    display: inline-block;
+    white-space: nowrap;
+    animation: marqueeScroll var(--ticker-duration, 30s) linear infinite;
+    padding-left: 100%;
+}
+
+.rss-ticker-inner .rss-ticker-item {
+    display: inline;
+    padding: 0 24px;
+}
+
+.rss-ticker-inner .rss-ticker-separator {
+    opacity: 0.4;
+    margin: 0 8px;
+}
+
+/* ==========================================
+   WEATHER WIDGET
+   ========================================== */
+.widget-weather {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.weather-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.weather-current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.weather-emoji {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.weather-temp {
+    font-size: clamp(2rem, 8vw, 4.5rem);
+    font-weight: 200;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.weather-condition {
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.weather-details {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.weather-detail {
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.weather-location {
+    font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.weather-forecast {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.weather-forecast-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    min-width: 70px;
+}
+
+.forecast-day-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.forecast-emoji {
+    font-size: 1.5rem;
+}
+
+.forecast-temps {
+    display: flex;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.forecast-high {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.forecast-low {
+    color: var(--text-muted);
+}
+
+.weather-loading {
+    color: var(--text-muted);
     font-size: 1rem;
 }
 
@@ -641,6 +951,47 @@ body.bg-image {
     100% { transform: translateX(100%); }
 }
 
+@keyframes separatorBlink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* Widget error state */
+.widget-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 12px;
+    color: var(--danger-color);
+    font-size: 0.95rem;
+}
+
+/* Widget loading state */
+.widget-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    opacity: 0.6;
+}
+
+.widget-loading::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ==========================================
    RESPONSIVE ADJUSTMENTS
    ========================================== */
@@ -680,6 +1031,10 @@ body.bg-image {
     :root {
         --topbar-height: 48px;
         --zone-radius: 8px;
+    }
+
+    .display-grid--full {
+        top: 0;
     }
 
     .top-bar {

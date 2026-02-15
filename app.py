@@ -9,11 +9,18 @@ import json
 import sqlite3
 import hashlib
 import secrets
+import time
+import urllib.request
+import urllib.parse
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import feedparser
+
+# In-memory cache for weather data
+_weather_cache = {}
+WEATHER_CACHE_TTL = 600  # 10 minutes
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
@@ -110,7 +117,8 @@ def init_database():
                     'background': {'type': 'transparent'}
                 }
             ],
-            'global_font': 'Arial, sans-serif'
+            'global_font': 'Arial, sans-serif',
+            'top_bar': {'mode': 'visible', 'show_seconds': True}
         })
         default_background = json.dumps({'type': 'color', 'value': '#1a1a1a'})
         cursor.execute('INSERT INTO displays (name, description, layout_config, background_config) VALUES (?, ?, ?, ?)',
@@ -340,10 +348,11 @@ def api_create_display():
                 'background': {'type': 'transparent'}
             }
         ],
-        'global_font': 'Arial, sans-serif'
+        'global_font': 'Arial, sans-serif',
+        'top_bar': {'mode': 'visible', 'show_seconds': True}
     })
     default_background = json.dumps({'type': 'color', 'value': '#1a1a1a'})
-    
+
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute('''
@@ -415,6 +424,125 @@ def api_time():
         'date': now.strftime('%A, %B %d, %Y'),
         'timestamp': now.timestamp()
     })
+
+@app.route('/api/weather')
+def api_weather():
+    """Fetch weather data from Open-Meteo API."""
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    units = request.args.get('units', 'C')
+
+    if not lat or not lon:
+        return jsonify({'error': 'lat and lon parameters required'}), 400
+
+    cache_key = f"{lat},{lon},{units}"
+    now = time.time()
+    if cache_key in _weather_cache:
+        cached = _weather_cache[cache_key]
+        if now - cached['timestamp'] < WEATHER_CACHE_TTL:
+            return jsonify(cached['data'])
+
+    try:
+        temp_unit = 'fahrenheit' if units == 'F' else 'celsius'
+        wind_unit = 'mph' if units == 'F' else 'kmh'
+        params = urllib.parse.urlencode({
+            'latitude': lat,
+            'longitude': lon,
+            'current': 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
+            'daily': 'weather_code,temperature_2m_max,temperature_2m_min',
+            'temperature_unit': temp_unit,
+            'wind_speed_unit': wind_unit,
+            'forecast_days': 3,
+            'timezone': 'auto'
+        })
+        url = f'https://api.open-meteo.com/v1/forecast?{params}'
+        req = urllib.request.Request(url, headers={'User-Agent': 'DigitalSignage/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+
+        # Map WMO weather codes to conditions and emojis
+        def weather_info(code):
+            mapping = {
+                0: ('Clear', '☀️'), 1: ('Mostly Clear', '🌤️'), 2: ('Partly Cloudy', '⛅'),
+                3: ('Overcast', '☁️'), 45: ('Foggy', '🌫️'), 48: ('Foggy', '🌫️'),
+                51: ('Light Drizzle', '🌦️'), 53: ('Drizzle', '🌦️'), 55: ('Heavy Drizzle', '🌧️'),
+                61: ('Light Rain', '🌧️'), 63: ('Rain', '🌧️'), 65: ('Heavy Rain', '🌧️'),
+                71: ('Light Snow', '🌨️'), 73: ('Snow', '🌨️'), 75: ('Heavy Snow', '❄️'),
+                77: ('Snow Grains', '🌨️'), 80: ('Light Showers', '🌦️'), 81: ('Showers', '🌧️'),
+                82: ('Heavy Showers', '🌧️'), 85: ('Snow Showers', '🌨️'), 86: ('Heavy Snow Showers', '❄️'),
+                95: ('Thunderstorm', '⛈️'), 96: ('Thunderstorm + Hail', '⛈️'), 99: ('Thunderstorm + Hail', '⛈️')
+            }
+            return mapping.get(code, ('Unknown', '🌡️'))
+
+        current = data.get('current', {})
+        daily = data.get('daily', {})
+        code = current.get('weather_code', 0)
+        condition, emoji = weather_info(code)
+        unit_symbol = '°F' if units == 'F' else '°C'
+        wind_symbol = 'mph' if units == 'F' else 'km/h'
+
+        result = {
+            'current': {
+                'temperature': current.get('temperature_2m'),
+                'humidity': current.get('relative_humidity_2m'),
+                'wind_speed': current.get('wind_speed_10m'),
+                'weather_code': code,
+                'condition': condition,
+                'emoji': emoji,
+                'unit': unit_symbol,
+                'wind_unit': wind_symbol
+            },
+            'forecast': []
+        }
+
+        if daily.get('time'):
+            for i in range(len(daily['time'])):
+                fc_code = daily['weather_code'][i] if i < len(daily.get('weather_code', [])) else 0
+                fc_cond, fc_emoji = weather_info(fc_code)
+                result['forecast'].append({
+                    'date': daily['time'][i],
+                    'temp_max': daily['temperature_2m_max'][i] if i < len(daily.get('temperature_2m_max', [])) else None,
+                    'temp_min': daily['temperature_2m_min'][i] if i < len(daily.get('temperature_2m_min', [])) else None,
+                    'condition': fc_cond,
+                    'emoji': fc_emoji
+                })
+
+        _weather_cache[cache_key] = {'data': result, 'timestamp': now}
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/geocode')
+def api_geocode():
+    """Geocode a city name using Open-Meteo's geocoding API."""
+    name = request.args.get('name')
+    if not name:
+        return jsonify({'error': 'name parameter required'}), 400
+
+    try:
+        params = urllib.parse.urlencode({'name': name, 'count': 5, 'language': 'en', 'format': 'json'})
+        url = f'https://geocoding-api.open-meteo.com/v1/search?{params}'
+        req = urllib.request.Request(url, headers={'User-Agent': 'DigitalSignage/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+
+        results = []
+        for r in data.get('results', []):
+            results.append({
+                'name': r.get('name'),
+                'country': r.get('country', ''),
+                'admin1': r.get('admin1', ''),
+                'latitude': r.get('latitude'),
+                'longitude': r.get('longitude')
+            })
+
+        return jsonify({'results': results})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/debug/<int:display_id>')
 def debug_player(display_id):

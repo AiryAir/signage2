@@ -4,32 +4,39 @@ let displayConfig = null;
 let clockInterval = null;
 let timerIntervals = {};
 let slideshowIntervals = {};
+let announcementIntervals = {};
+let rssRotationIntervals = {};
 let rssCache = {};
+let weatherIntervals = {};
+let autoHideTimeout = null;
 
 function initializePlayer(config) {
     displayConfig = config;
-    
+
     console.log('Initializing player with config:', config);
-    
+
     // Validate config
     if (!config || !config.layout || !config.background) {
         console.error('Invalid display configuration:', config);
         document.getElementById('displayGrid').innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Error: Invalid display configuration</div>';
         return;
     }
-    
+
     // Set up background
     setupBackground();
-    
+
+    // Set up top bar
+    setupTopBar();
+
     // Set up grid
     setupGrid();
-    
+
     // Start clock updates
     startClock();
-    
+
     // Start auto-refresh for RSS feeds
     startRSSRefresh();
-    
+
     // Handle fullscreen
     document.addEventListener('keydown', function(e) {
         if (e.key === 'F11') {
@@ -40,26 +47,91 @@ function initializePlayer(config) {
             exitFullscreen();
         }
     });
-    
+
     // Auto-refresh display every 5 minutes
     setInterval(refreshDisplay, 5 * 60 * 1000);
 }
 
+// ─── Top Bar ──────────────────────────────────────────────────
+
+function setupTopBar() {
+    const topBar = document.getElementById('topBar');
+    const displayGrid = document.getElementById('displayGrid');
+    const topBarConfig = (displayConfig.layout.top_bar) || {};
+    const mode = topBarConfig.mode || 'visible';
+
+    // Remove any existing mode classes
+    topBar.classList.remove('top-bar--overlay', 'top-bar--auto-hide', 'top-bar--hidden', 'top-bar--shown');
+    displayGrid.classList.remove('display-grid--full');
+
+    switch (mode) {
+        case 'overlay':
+            topBar.classList.add('top-bar--overlay');
+            displayGrid.classList.add('display-grid--full');
+            break;
+        case 'auto-hide':
+            topBar.classList.add('top-bar--auto-hide');
+            displayGrid.classList.add('display-grid--full');
+            setupAutoHide(topBar);
+            break;
+        case 'hidden':
+            topBar.classList.add('top-bar--hidden');
+            displayGrid.classList.add('display-grid--full');
+            break;
+        // 'visible' is the default — no extra classes needed
+    }
+
+    // Handle show_seconds for top bar
+    const showSeconds = topBarConfig.show_seconds !== false; // default true
+    const secondsEl = topBar.querySelector('.clock-seconds');
+    if (secondsEl && !showSeconds) {
+        secondsEl.style.display = 'none';
+    }
+}
+
+function setupAutoHide(topBar) {
+    const TRIGGER_ZONE = 60; // px from top edge
+    const HIDE_DELAY = 3000; // ms
+
+    function showBar() {
+        topBar.classList.add('top-bar--shown');
+        clearTimeout(autoHideTimeout);
+        autoHideTimeout = setTimeout(() => {
+            topBar.classList.remove('top-bar--shown');
+        }, HIDE_DELAY);
+    }
+
+    document.addEventListener('mousemove', function(e) {
+        if (e.clientY <= TRIGGER_ZONE) {
+            showBar();
+        }
+    });
+
+    document.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        if (touch && touch.clientY <= TRIGGER_ZONE) {
+            showBar();
+        }
+    });
+}
+
+// ─── Background ───────────────────────────────────────────────
+
 function setupBackground() {
     const body = document.body;
     const bg = displayConfig.background;
-    
+
     // Apply global font to body (affects top bar)
     const globalFont = displayConfig.layout.global_font || 'Arial, sans-serif';
     body.style.fontFamily = globalFont;
     console.log('Applied global font to body:', globalFont);
-    
+
     // Clear any existing background styles first
     body.style.background = '';
     body.style.backgroundColor = '';
     body.style.backgroundImage = '';
     body.classList.remove('bg-color', 'bg-image');
-    
+
     if (bg.type === 'color') {
         body.style.backgroundColor = bg.value;
         body.classList.add('bg-color');
@@ -79,24 +151,26 @@ function setupBackground() {
     }
 }
 
+// ─── Grid ─────────────────────────────────────────────────────
+
 function setupGrid() {
     console.log('Setting up grid with layout:', displayConfig.layout);
-    
+
     const grid = displayConfig.layout.grid;
     const displayGrid = document.getElementById('displayGrid');
-    
+
     if (!grid || !grid.rows || !grid.cols) {
         console.error('Invalid grid configuration:', grid);
         displayGrid.innerHTML = '<div style="color: white; text-align: center; padding: 50px;">Error: Invalid grid configuration</div>';
         return;
     }
-    
+
     displayGrid.style.gridTemplateRows = `repeat(${grid.rows}, 1fr)`;
     displayGrid.style.gridTemplateColumns = `repeat(${grid.cols}, 1fr)`;
-    
+
     // Clear existing zones
     displayGrid.innerHTML = '';
-    
+
     // Create zones
     if (displayConfig.layout.zones && Array.isArray(displayConfig.layout.zones)) {
         displayConfig.layout.zones.forEach((zone, index) => {
@@ -110,17 +184,22 @@ function setupGrid() {
     }
 }
 
+// ─── Zone Creation ────────────────────────────────────────────
+
 function createZone(zone, index) {
     console.log('Creating zone', index, 'with type:', zone.type, 'zone data:', zone);
 
     const zoneElement = document.createElement('div');
     zoneElement.className = 'player-zone';
-    zoneElement.style.opacity = zone.opacity || 1.0;
     zoneElement.id = `zone-${index}`;
+
+    // Use CSS custom property for opacity so entrance animation works correctly
+    const zoneOpacity = zone.opacity || 1.0;
+    zoneElement.style.setProperty('--zone-opacity', zoneOpacity);
 
     // Add staggered animation delay for entrance effect
     zoneElement.style.animationDelay = `${index * 0.1}s`;
-    
+
     // Apply zone background - if transparent, make sure zone is truly transparent
     if (zone.background && zone.background.type === 'transparent') {
         zoneElement.style.background = 'transparent';
@@ -129,7 +208,7 @@ function createZone(zone, index) {
     } else {
         applyZoneBackground(zoneElement, zone.background);
     }
-    
+
     const contentElement = document.createElement('div');
     contentElement.className = 'zone-content';
 
@@ -144,17 +223,17 @@ function createZone(zone, index) {
         // Apply background to content element to override widget defaults
         applyZoneBackground(contentElement, zone.background);
     }
-    
+
     // Apply typography
     const globalFont = displayConfig.layout.global_font || 'Arial, sans-serif';
     const zoneFont = zone.font_family || globalFont;
     const zoneFontSize = zone.font_size || '16px';
-    
+
     contentElement.style.fontFamily = zoneFont;
     contentElement.style.fontSize = zoneFontSize;
-    
+
     console.log('Applying font:', zoneFont, 'size:', zoneFontSize);
-    
+
     switch (zone.type) {
         case 'clock':
             createClockWidget(contentElement, zone);
@@ -163,13 +242,13 @@ function createZone(zone, index) {
             createTimerWidget(contentElement, zone.content, index);
             break;
         case 'announcement':
-            createAnnouncementWidget(contentElement, zone.content);
+            createAnnouncementWidget(contentElement, zone, index);
             break;
         case 'iframe':
             createIframeWidget(contentElement, zone.content);
             break;
         case 'rss':
-            createRSSWidget(contentElement, zone.content, index);
+            createRSSWidget(contentElement, zone, index);
             break;
         case 'image':
             createImageWidget(contentElement, zone.content);
@@ -180,83 +259,162 @@ function createZone(zone, index) {
         case 'slideshow':
             createSlideshowWidget(contentElement, zone.content, index);
             break;
+        case 'weather':
+            createWeatherWidget(contentElement, zone, index);
+            break;
         default:
             console.log('Creating empty widget for zone type:', zone.type);
             createEmptyWidget(contentElement);
     }
-    
+
     zoneElement.appendChild(contentElement);
     console.log('Zone element created:', zoneElement);
     return zoneElement;
 }
 
+// ─── Clock Widget ─────────────────────────────────────────────
+
 function createClockWidget(container, zone) {
     container.className += ' widget-clock';
-    
+
     const timeFormat = zone.time_format || '24h';
     const dateFormat = zone.date_format || 'full';
-    
+
     console.log('Creating clock widget with time format:', timeFormat, 'date format:', dateFormat);
-    
+
     container.innerHTML = `
         <div>
-            <div class="clock-time" data-time-format="${timeFormat}">--:--:--</div>
+            <div class="clock-time" data-time-format="${timeFormat}">
+                <span class="clock-hours">--</span><span class="clock-separator">:</span><span class="clock-minutes">--</span><span class="clock-seconds">:--</span>${timeFormat === '12h' ? '<span class="clock-ampm"></span>' : ''}
+            </div>
             <div class="clock-date" data-date-format="${dateFormat}">Loading...</div>
         </div>
     `;
-    
+
     // Store zone settings for clock formatting
     container.dataset.timeFormat = timeFormat;
     container.dataset.dateFormat = dateFormat;
 }
 
+// ─── Timer Widget ─────────────────────────────────────────────
+
 function createTimerWidget(container, duration, index) {
     container.className += ' widget-timer';
-    
+
     const minutes = parseInt(duration) || 10;
     const totalSeconds = minutes * 60;
-    
+
     container.innerHTML = `
         <div>
             <div class="timer-display" id="timer-${index}">00:00</div>
             <div class="timer-label">Countdown Timer</div>
+            <div class="timer-progress-container">
+                <div class="timer-progress-bar" id="timer-progress-${index}" style="width: 100%;"></div>
+            </div>
         </div>
     `;
-    
+
     startTimer(index, totalSeconds);
 }
 
-function createAnnouncementWidget(container, text) {
+// ─── Announcement Widget ──────────────────────────────────────
+
+function createAnnouncementWidget(container, zone, index) {
     container.className += ' widget-announcement';
-    container.innerHTML = `
-        <div class="announcement-text">${escapeHtml(text)}</div>
-    `;
+
+    const text = zone.content || '';
+    const mode = zone.announcement_mode || 'static';
+    const interval = (zone.announcement_interval || 5) * 1000;
+
+    if (mode === 'crossfade') {
+        // Split content by newlines into slides
+        const lines = text.split('\n').filter(l => l.trim());
+        if (lines.length <= 1) {
+            // Fall back to static if only one line
+            container.innerHTML = `<div class="announcement-text">${escapeHtml(text)}</div>`;
+            return;
+        }
+
+        let slidesHtml = '<div class="announcement-carousel">';
+        lines.forEach((line, i) => {
+            slidesHtml += `<div class="announcement-slide${i === 0 ? ' active' : ''}">${escapeHtml(line)}</div>`;
+        });
+        slidesHtml += '</div>';
+        container.innerHTML = slidesHtml;
+
+        startAnnouncementRotation(container, index, interval);
+
+    } else if (mode === 'marquee') {
+        const lines = text.split('\n').filter(l => l.trim());
+        const joined = lines.map(l => escapeHtml(l)).join(' \u2022 ');
+
+        // Calculate duration proportional to content length
+        const baseDuration = Math.max(10, joined.length * 0.15);
+
+        container.innerHTML = `
+            <div class="announcement-marquee">
+                <div class="announcement-marquee-inner" style="--marquee-duration: ${baseDuration}s;">${joined}</div>
+            </div>
+        `;
+
+    } else {
+        // Static mode (default)
+        container.innerHTML = `<div class="announcement-text">${escapeHtml(text)}</div>`;
+    }
 }
+
+function startAnnouncementRotation(container, index, interval) {
+    const slides = container.querySelectorAll('.announcement-slide');
+    if (slides.length <= 1) return;
+
+    let current = 0;
+
+    announcementIntervals[index] = setInterval(() => {
+        slides[current].classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current].classList.add('active');
+    }, interval);
+}
+
+// ─── iframe Widget ────────────────────────────────────────────
 
 function createIframeWidget(container, content) {
     container.className += ' widget-iframe';
-    
+
     let iframeHtml = content;
-    
+
     // If content looks like a URL, wrap it in an iframe
     if (content && !content.includes('<iframe') && (content.startsWith('http') || content.startsWith('//'))) {
         iframeHtml = `<iframe src="${content}" frameborder="0" allowfullscreen></iframe>`;
     }
-    
+
     container.innerHTML = iframeHtml;
 }
 
-function createRSSWidget(container, feedUrl, index) {
+// ─── RSS Widget ───────────────────────────────────────────────
+
+function createRSSWidget(container, zone, index) {
     container.className += ' widget-rss';
+
+    const feedUrl = zone.content || '';
+    const rssMode = zone.rss_mode || 'list';
+    const rssInterval = (zone.rss_interval || 8) * 1000;
+
+    // Store mode as data attributes for later use
+    container.dataset.rssMode = rssMode;
+    container.dataset.rssInterval = rssInterval;
+
     container.innerHTML = `
-        <div class="rss-title">Loading RSS Feed...</div>
+        <div class="rss-title widget-loading">Loading RSS Feed...</div>
         <div id="rss-content-${index}"></div>
     `;
-    
+
     if (feedUrl) {
         loadRSSFeed(feedUrl, index);
     }
 }
+
+// ─── Other Widgets ────────────────────────────────────────────
 
 function createEmptyWidget(container) {
     container.className += ' widget-empty';
@@ -267,7 +425,7 @@ function createEmptyWidget(container) {
 
 function createImageWidget(container, imageUrl) {
     container.className += ' widget-image';
-    
+
     if (imageUrl) {
         // Support both URLs and local paths, handle spaces in filenames
         let imageSrc = imageUrl;
@@ -279,11 +437,11 @@ function createImageWidget(container, imageUrl) {
             // For URLs, encode to handle spaces
             imageSrc = encodeURI(imageUrl);
         }
-        
+
         container.innerHTML = `
-            <img src="${escapeHtml(imageSrc)}" 
-                 alt="Zone Image" 
-                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" 
+            <img src="${escapeHtml(imageSrc)}"
+                 alt="Zone Image"
+                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
                  onerror="this.parentElement.innerHTML='<div class=\\'empty-text\\'>Failed to load image</div>'" />
         `;
     } else {
@@ -295,12 +453,12 @@ function createImageWidget(container, imageUrl) {
 
 function createVideoWidget(container, videoUrl) {
     container.className += ' widget-video';
-    
+
     if (videoUrl) {
         // Check if it's a YouTube URL
         const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
         const youtubeMatch = videoUrl.match(youtubeRegex);
-        
+
         if (youtubeMatch) {
             // YouTube video - use embed iframe
             const videoId = youtubeMatch[1];
@@ -313,52 +471,37 @@ function createVideoWidget(container, videoUrl) {
             `;
             return;
         }
-        
+
         // Regular video file
         let videoSrc = videoUrl;
         if (!videoUrl.startsWith('http') && !videoUrl.startsWith('/')) {
-            // Local file path - encode spaces and convert to static URL
             const encodedFilename = encodeURIComponent(videoUrl);
             videoSrc = `/static/uploads/${encodedFilename}`;
         } else {
-            // For URLs, encode to handle spaces
             videoSrc = encodeURI(videoUrl);
         }
-        
-        // Support different video formats and provide better error handling
+
         const videoElement = document.createElement('video');
         videoElement.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 8px;';
         videoElement.autoplay = true;
         videoElement.muted = true;
         videoElement.loop = true;
         videoElement.controls = false;
-        
-        // Handle different video formats
+
         if (videoSrc.toLowerCase().includes('.mp4')) {
-            videoElement.innerHTML = `
-                <source src="${escapeHtml(videoSrc)}" type="video/mp4">
-                Your browser does not support MP4 videos.
-            `;
+            videoElement.innerHTML = `<source src="${escapeHtml(videoSrc)}" type="video/mp4">`;
         } else if (videoSrc.toLowerCase().includes('.webm')) {
-            videoElement.innerHTML = `
-                <source src="${escapeHtml(videoSrc)}" type="video/webm">
-                Your browser does not support WebM videos.
-            `;
+            videoElement.innerHTML = `<source src="${escapeHtml(videoSrc)}" type="video/webm">`;
         } else if (videoSrc.toLowerCase().includes('.ogg')) {
-            videoElement.innerHTML = `
-                <source src="${escapeHtml(videoSrc)}" type="video/ogg">
-                Your browser does not support OGG videos.
-            `;
+            videoElement.innerHTML = `<source src="${escapeHtml(videoSrc)}" type="video/ogg">`;
         } else {
-            // Generic fallback
             videoElement.src = escapeHtml(videoSrc);
         }
-        
-        // Error handling
+
         videoElement.onerror = function() {
             container.innerHTML = '<div class="empty-text">Failed to load video</div>';
         };
-        
+
         container.innerHTML = '';
         container.appendChild(videoElement);
     } else {
@@ -370,56 +513,47 @@ function createVideoWidget(container, videoUrl) {
 
 function createSlideshowWidget(container, content, index) {
     container.className += ' widget-slideshow';
-    
+
     if (content) {
-        // Parse content - format: "timer_seconds:image1.jpg\nimage2.jpg" or just "image1.jpg\nimage2.jpg"
         const lines = content.split('\n').filter(line => line.trim());
-        
+
         if (lines.length === 0) {
             container.innerHTML = '<div class="empty-text">No images provided for slideshow</div>';
             return;
         }
-        
-        // Check if first line contains timer setting
-        let slideTimer = 5000; // Default 5 seconds
+
+        let slideTimer = 5000;
         let imageStartIndex = 0;
-        
+
         if (lines[0].includes(':') && lines[0].match(/^\d+:/)) {
-            // First line contains timer setting like "3:image.jpg" or just "8:"
             const timerMatch = lines[0].match(/^(\d+):/);
             if (timerMatch) {
-                slideTimer = parseInt(timerMatch[1]) * 1000; // Convert to milliseconds
-                // If there's an image after the colon, include it
+                slideTimer = parseInt(timerMatch[1]) * 1000;
                 const remainingPart = lines[0].substring(timerMatch[0].length).trim();
                 if (remainingPart) {
-                    lines[0] = remainingPart; // Replace first line with just the image part
+                    lines[0] = remainingPart;
                 } else {
-                    imageStartIndex = 1; // Skip the timer-only line
+                    imageStartIndex = 1;
                 }
             }
         }
-        
-        // Get image list starting from the correct index
+
         const imageList = lines.slice(imageStartIndex).filter(url => url.trim());
-        
+
         if (imageList.length === 0) {
             container.innerHTML = '<div class="empty-text">No images provided for slideshow</div>';
             return;
         }
-        
-        // Process image URLs/paths and handle spaces
+
         const processedImages = imageList.map(url => {
             const trimmedUrl = url.trim();
             if (!trimmedUrl.startsWith('http') && !trimmedUrl.startsWith('/')) {
-                // Local file path - encode spaces and convert to static URL
                 const encodedFilename = encodeURIComponent(trimmedUrl);
                 return `/static/uploads/${encodedFilename}`;
             }
-            // For URLs, encode the entire URL to handle spaces
             return encodeURI(trimmedUrl);
         });
-        
-        // Create slideshow container
+
         container.innerHTML = `
             <div class="slideshow-container" id="slideshow-${index}">
                 <img class="slideshow-image" alt="Slideshow Image" />
@@ -428,8 +562,7 @@ function createSlideshowWidget(container, content, index) {
                 </div>
             </div>
         `;
-        
-        // Start slideshow with custom timer
+
         startSlideshow(index, processedImages, slideTimer);
     } else {
         container.innerHTML = `
@@ -438,6 +571,88 @@ function createSlideshowWidget(container, content, index) {
     }
 }
 
+// ─── Weather Widget ───────────────────────────────────────────
+
+function createWeatherWidget(container, zone, index) {
+    container.className += ' widget-weather';
+
+    const lat = zone.weather_lat;
+    const lon = zone.weather_lon;
+    const units = zone.weather_units || 'C';
+    const location = zone.weather_location || 'Unknown';
+    const refreshMin = zone.weather_refresh || 30;
+
+    container.innerHTML = `
+        <div class="weather-container">
+            <div class="weather-loading">Loading weather...</div>
+        </div>
+    `;
+
+    if (lat && lon) {
+        loadWeather(container, lat, lon, units, location, index);
+        weatherIntervals[index] = setInterval(() => {
+            loadWeather(container, lat, lon, units, location, index);
+        }, refreshMin * 60 * 1000);
+    } else {
+        container.querySelector('.weather-container').innerHTML =
+            '<div class="empty-text">No location configured</div>';
+    }
+}
+
+async function loadWeather(container, lat, lon, units, location, index) {
+    try {
+        const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}&units=${units}`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        const c = data.current;
+        const unitSymbol = c.unit || '°C';
+        const windUnit = c.wind_unit || 'km/h';
+
+        let forecastHtml = '';
+        if (data.forecast && data.forecast.length > 0) {
+            forecastHtml = '<div class="weather-forecast">';
+            data.forecast.forEach(day => {
+                const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+                forecastHtml += `
+                    <div class="weather-forecast-day">
+                        <div class="forecast-day-name">${dayName}</div>
+                        <div class="forecast-emoji">${day.emoji}</div>
+                        <div class="forecast-temps">
+                            <span class="forecast-high">${Math.round(day.temp_max)}°</span>
+                            <span class="forecast-low">${Math.round(day.temp_min)}°</span>
+                        </div>
+                    </div>
+                `;
+            });
+            forecastHtml += '</div>';
+        }
+
+        container.querySelector('.weather-container').innerHTML = `
+            <div class="weather-current">
+                <div class="weather-emoji">${c.emoji}</div>
+                <div class="weather-temp">${Math.round(c.temperature)}${unitSymbol}</div>
+                <div class="weather-condition">${c.condition}</div>
+            </div>
+            <div class="weather-details">
+                <div class="weather-detail"><span>💧</span> ${c.humidity}%</div>
+                <div class="weather-detail"><span>💨</span> ${Math.round(c.wind_speed)} ${windUnit}</div>
+            </div>
+            <div class="weather-location">${escapeHtml(location)}</div>
+            ${forecastHtml}
+        `;
+    } catch (error) {
+        console.error('Weather loading error:', error);
+        container.querySelector('.weather-container').innerHTML =
+            '<div class="widget-error">Failed to load weather</div>';
+    }
+}
+
+// ─── Clock Updates ────────────────────────────────────────────
+
 function startClock() {
     updateClock();
     clockInterval = setInterval(updateClock, 1000);
@@ -445,33 +660,48 @@ function startClock() {
 
 function updateClock() {
     const now = new Date();
-    
-    // Fallback time formatting if signageApp is not available
-    const formatTime24 = (date) => date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const formatTime12 = (date) => date.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
+    const pad = (n) => n.toString().padStart(2, '0');
+
+    const hours24 = pad(now.getHours());
+    const hours12 = pad(now.getHours() % 12 || 12);
+    const minutes = pad(now.getMinutes());
+    const seconds = pad(now.getSeconds());
+    const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+
     const formatDateFull = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const formatDateShort = (date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     const formatDateNumeric = (date) => date.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' });
     const formatDateISO = (date) => date.toISOString().split('T')[0];
-    
-    // Update top bar (always 24h format)
-    document.getElementById('currentTime').textContent = formatTime24(now);
+
+    // Update top bar structured clock
+    const topBar = document.getElementById('topBar');
+    const tbHours = topBar.querySelector('.clock-hours');
+    const tbMinutes = topBar.querySelector('.clock-minutes');
+    const tbSeconds = topBar.querySelector('.clock-seconds');
+
+    if (tbHours) tbHours.textContent = hours24;
+    if (tbMinutes) tbMinutes.textContent = minutes;
+    if (tbSeconds) tbSeconds.textContent = seconds;
+
     document.getElementById('currentDate').textContent = formatDateFull(now);
-    
+
     // Update clock widgets with their specific formatting
     const clockElements = document.querySelectorAll('.widget-clock');
     clockElements.forEach(widget => {
         const timeFormat = widget.dataset.timeFormat || '24h';
         const dateFormat = widget.dataset.dateFormat || 'full';
-        
-        const clockTime = widget.querySelector('.clock-time');
+
+        const clockHours = widget.querySelector('.clock-hours');
+        const clockMinutes = widget.querySelector('.clock-minutes');
+        const clockSeconds = widget.querySelector('.clock-seconds');
+        const clockAmpm = widget.querySelector('.clock-ampm');
         const clockDate = widget.querySelector('.clock-date');
-        
-        if (clockTime) {
-            clockTime.textContent = timeFormat === '12h' ? formatTime12(now) : formatTime24(now);
-        }
-        
+
+        if (clockHours) clockHours.textContent = timeFormat === '12h' ? hours12 : hours24;
+        if (clockMinutes) clockMinutes.textContent = minutes;
+        if (clockSeconds) clockSeconds.textContent = seconds;
+        if (clockAmpm) clockAmpm.textContent = ampm;
+
         if (clockDate) {
             switch (dateFormat) {
                 case 'short':
@@ -493,21 +723,43 @@ function updateClock() {
     });
 }
 
+// ─── Timer ────────────────────────────────────────────────────
+
 function startTimer(index, totalSeconds) {
     let remainingSeconds = totalSeconds;
-    const warningThreshold = Math.min(60, totalSeconds * 0.2); // 20% or 60 seconds
-    const dangerThreshold = Math.min(10, totalSeconds * 0.05); // 5% or 10 seconds
+    const warningThreshold = Math.min(60, totalSeconds * 0.2);
+    const dangerThreshold = Math.min(10, totalSeconds * 0.05);
 
     const updateTimer = () => {
-        const minutes = Math.floor(remainingSeconds / 60);
-        const seconds = remainingSeconds % 60;
-        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        const display = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
         const timerElement = document.getElementById(`timer-${index}`);
+        const progressBar = document.getElementById(`timer-progress-${index}`);
+
         if (timerElement) {
             timerElement.textContent = display;
 
-            // Update visual state based on remaining time
+            // Calculate percentage for progress bar
+            const pct = (remainingSeconds / totalSeconds) * 100;
+
+            // Color gradient: green > yellow > red
+            let color;
+            if (pct > 50) {
+                color = '#10b981'; // green (success)
+            } else if (pct > 20) {
+                color = '#f59e0b'; // yellow (warning)
+            } else {
+                color = '#ef4444'; // red (danger)
+            }
+
+            if (progressBar) {
+                progressBar.style.width = pct + '%';
+                progressBar.style.backgroundColor = color;
+            }
+
+            // Update visual state based on remaining time (CSS classes from remote)
             timerElement.classList.remove('timer-warning', 'timer-danger');
             if (remainingSeconds <= dangerThreshold && remainingSeconds > 0) {
                 timerElement.classList.add('timer-danger');
@@ -518,6 +770,9 @@ function startTimer(index, totalSeconds) {
             if (remainingSeconds <= 0) {
                 timerElement.classList.add('timer-danger');
                 timerElement.textContent = '00:00';
+                if (progressBar) {
+                    progressBar.style.width = '0%';
+                }
                 clearInterval(timerIntervals[index]);
 
                 // Pulse effect when timer ends
@@ -533,6 +788,8 @@ function startTimer(index, totalSeconds) {
     updateTimer();
     timerIntervals[index] = setInterval(updateTimer, 1000);
 }
+
+// ─── Slideshow ────────────────────────────────────────────────
 
 function startSlideshow(index, images, slideTimer = 5000) {
     let currentImageIndex = 0;
@@ -568,62 +825,130 @@ function startSlideshow(index, images, slideTimer = 5000) {
             };
             imageElement.onerror = () => {
                 console.error('Failed to load slideshow image:', images[currentImageIndex]);
-                // Skip to next image on error
                 currentImageIndex = (currentImageIndex + 1) % images.length;
                 setTimeout(showNextImage, 100);
                 return;
             };
 
             currentImageIndex = (currentImageIndex + 1) % images.length;
-        }, 400); // Transition time
+        }, 400);
     };
 
-    // Show first image immediately
     showNextImage();
 
-    // Only start interval if there are multiple images
     if (images.length > 1) {
         slideshowIntervals[index] = setInterval(showNextImage, slideTimer);
     }
 }
 
+// ─── RSS Feed ─────────────────────────────────────────────────
+
 async function loadRSSFeed(feedUrl, index) {
     try {
         const response = await fetch(`/api/rss?url=${encodeURIComponent(feedUrl)}`);
         const data = await response.json();
-        
+
         if (data.error) {
             throw new Error(data.error);
         }
-        
+
         const container = document.getElementById(`rss-content-${index}`);
         const titleElement = container.parentElement.querySelector('.rss-title');
-        
+        const widgetContainer = container.parentElement; // the .zone-content.widget-rss
+
         if (titleElement) {
             titleElement.textContent = data.title || 'RSS Feed';
+            titleElement.classList.remove('widget-loading');
         }
-        
-        let html = '';
-        data.items.forEach(item => {
-            html += `
-                <div class="rss-item">
-                    <div class="rss-item-title">${escapeHtml(item.title)}</div>
-                    <div class="rss-item-description">${truncateText(stripHtml(item.description), 200)}</div>
-                    ${item.published ? `<div class="rss-item-date">${formatRSSDate(item.published)}</div>` : ''}
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
+
+        const rssMode = widgetContainer.dataset.rssMode || 'list';
+        const rssInterval = parseInt(widgetContainer.dataset.rssInterval) || 8000;
+
+        if (rssMode === 'rotate') {
+            renderRSSRotate(container, data.items, index, rssInterval);
+        } else if (rssMode === 'ticker') {
+            renderRSSTicker(container, data.items, index);
+        } else {
+            renderRSSList(container, data.items);
+        }
+
         rssCache[feedUrl] = { data, timestamp: Date.now() };
-        
+
     } catch (error) {
         console.error('RSS loading error:', error);
         const container = document.getElementById(`rss-content-${index}`);
         if (container) {
-            container.innerHTML = `<div class="rss-error">Failed to load RSS feed</div>`;
+            container.innerHTML = `<div class="widget-error">Failed to load RSS feed</div>`;
+            const titleEl = container.parentElement.querySelector('.rss-title');
+            if (titleEl) titleEl.classList.remove('widget-loading');
         }
     }
+}
+
+function renderRSSList(container, items) {
+    let html = '';
+    items.forEach(item => {
+        html += `
+            <div class="rss-item">
+                <div class="rss-item-title">${escapeHtml(item.title)}</div>
+                <div class="rss-item-description">${truncateText(stripHtml(item.description), 200)}</div>
+                ${item.published ? `<div class="rss-item-date">${formatRSSDate(item.published)}</div>` : ''}
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function renderRSSRotate(container, items, index, interval) {
+    if (items.length === 0) return;
+
+    let html = '<div class="rss-single-item">';
+    items.forEach((item, i) => {
+        html += `
+            <div class="rss-item${i === 0 ? ' active' : ''}">
+                <div class="rss-item-title">${escapeHtml(item.title)}</div>
+                <div class="rss-item-description">${truncateText(stripHtml(item.description), 300)}</div>
+                ${item.published ? `<div class="rss-item-date">${formatRSSDate(item.published)}</div>` : ''}
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+    startRSSRotation(container, index, interval);
+}
+
+function startRSSRotation(container, index, interval) {
+    const items = container.querySelectorAll('.rss-single-item .rss-item');
+    if (items.length <= 1) return;
+
+    let current = 0;
+
+    rssRotationIntervals[index] = setInterval(() => {
+        items[current].classList.remove('active');
+        current = (current + 1) % items.length;
+        items[current].classList.add('active');
+    }, interval);
+}
+
+function renderRSSTicker(container, items, index) {
+    if (items.length === 0) return;
+
+    const tickerContent = items.map(item =>
+        `<span class="rss-ticker-item">${escapeHtml(item.title)}</span>`
+    ).join('<span class="rss-ticker-separator">\u2022</span>');
+
+    // Calculate duration proportional to content length
+    const totalLength = items.reduce((acc, item) => acc + item.title.length, 0);
+    const duration = Math.max(15, totalLength * 0.2);
+
+    container.innerHTML = `
+        <div class="rss-ticker">
+            <div class="rss-ticker-inner" style="--ticker-duration: ${duration}s;">
+                ${tickerContent}<span class="rss-ticker-separator">\u2022</span>${tickerContent}
+            </div>
+        </div>
+    `;
 }
 
 function startRSSRefresh() {
@@ -637,20 +962,19 @@ function startRSSRefresh() {
     }, 10 * 60 * 1000);
 }
 
+// ─── Display Refresh & Cleanup ────────────────────────────────
+
 function refreshDisplay() {
-    // Clear all intervals before reload
-    if (clockInterval) {
-        clearInterval(clockInterval);
-    }
-    
-    Object.values(timerIntervals).forEach(interval => {
-        clearInterval(interval);
-    });
-    
-    Object.values(slideshowIntervals).forEach(interval => {
-        clearInterval(interval);
-    });
-    
+    if (clockInterval) clearInterval(clockInterval);
+
+    Object.values(timerIntervals).forEach(interval => clearInterval(interval));
+    Object.values(slideshowIntervals).forEach(interval => clearInterval(interval));
+    Object.values(announcementIntervals).forEach(interval => clearInterval(interval));
+    Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
+    Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
+
+    if (autoHideTimeout) clearTimeout(autoHideTimeout);
+
     // Reload the page to get fresh content
     window.location.reload();
 }
@@ -669,14 +993,16 @@ function exitFullscreen() {
     }
 }
 
+// ─── Zone Background ─────────────────────────────────────────
+
 function applyZoneBackground(element, background) {
     console.log('Applying background:', background);
-    
+
     if (!background || background.type === 'transparent') {
         console.log('Using transparent background');
         return;
     }
-    
+
     switch (background.type) {
         case 'color':
             const rgba = hexToRgba(background.color, background.opacity || 0.8);
@@ -688,7 +1014,7 @@ function applyZoneBackground(element, background) {
             const blurAmount = background.blur || 10;
             element.style.backgroundColor = `rgba(255, 255, 255, ${glassOpacity})`;
             element.style.backdropFilter = `blur(${blurAmount}px)`;
-            element.style.webkitBackdropFilter = `blur(${blurAmount}px)`; // Safari support
+            element.style.webkitBackdropFilter = `blur(${blurAmount}px)`;
             element.style.border = '1px solid rgba(255, 255, 255, 0.2)';
             element.style.borderRadius = '8px';
             console.log('Applied glassmorphism background with blur:', blurAmount, 'opacity:', glassOpacity);
@@ -714,7 +1040,8 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Utility functions
+// ─── Utility Functions ────────────────────────────────────────
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -741,17 +1068,16 @@ function formatRSSDate(dateString) {
     }
 }
 
-// Cleanup on page unload
+// ─── Cleanup on Page Unload ───────────────────────────────────
+
 window.addEventListener('beforeunload', function() {
-    if (clockInterval) {
-        clearInterval(clockInterval);
-    }
-    
-    Object.values(timerIntervals).forEach(interval => {
-        clearInterval(interval);
-    });
-    
-    Object.values(slideshowIntervals).forEach(interval => {
-        clearInterval(interval);
-    });
+    if (clockInterval) clearInterval(clockInterval);
+
+    Object.values(timerIntervals).forEach(interval => clearInterval(interval));
+    Object.values(slideshowIntervals).forEach(interval => clearInterval(interval));
+    Object.values(announcementIntervals).forEach(interval => clearInterval(interval));
+    Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
+    Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
+
+    if (autoHideTimeout) clearTimeout(autoHideTimeout);
 });
