@@ -543,8 +543,8 @@ async function saveConfiguration() {
                 background_config: currentBackground
             })
         });
-        
-        alert('Configuration saved successfully!');
+
+        alert('Configuration saved! Update will be pushed to display within 30 seconds.');
     } catch (error) {
         alert('Error saving configuration: ' + error.message);
     }

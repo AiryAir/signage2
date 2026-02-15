@@ -9,6 +9,8 @@ let rssRotationIntervals = {};
 let rssCache = {};
 let weatherIntervals = {};
 let schedulerInterval = null;
+let heartbeatInterval = null;
+let currentConfigVersion = null;
 let activeSchedules = {};
 let autoHideTimeout = null;
 
@@ -41,6 +43,9 @@ function initializePlayer(config) {
 
     // Start content scheduler
     startScheduler();
+
+    // Start heartbeat for remote management
+    startHeartbeat();
 
     // Handle fullscreen
     document.addEventListener('keydown', function(e) {
@@ -1032,6 +1037,37 @@ function startRSSRefresh() {
     }, 10 * 60 * 1000);
 }
 
+// ─── Heartbeat & Remote Management ────────────────────────────
+
+function startHeartbeat() {
+    if (!displayConfig || !displayConfig.id) return;
+
+    sendHeartbeat();
+    heartbeatInterval = setInterval(sendHeartbeat, 30 * 1000); // Every 30 seconds
+}
+
+async function sendHeartbeat() {
+    try {
+        const response = await fetch(`/api/display/${displayConfig.id}/heartbeat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (data.config_version) {
+            if (currentConfigVersion === null) {
+                currentConfigVersion = data.config_version;
+            } else if (data.config_version !== currentConfigVersion) {
+                console.log('Config version changed, refreshing display...');
+                currentConfigVersion = data.config_version;
+                refreshDisplay();
+            }
+        }
+    } catch (error) {
+        console.warn('Heartbeat failed:', error.message);
+    }
+}
+
 // ─── Content Scheduler ────────────────────────────────────────
 
 function startScheduler() {
@@ -1141,6 +1177,7 @@ function refreshDisplay() {
     Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
     Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
     if (schedulerInterval) clearInterval(schedulerInterval);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
 
     if (autoHideTimeout) clearTimeout(autoHideTimeout);
 
@@ -1248,6 +1285,7 @@ window.addEventListener('beforeunload', function() {
     Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
     Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
     if (schedulerInterval) clearInterval(schedulerInterval);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
 
     if (autoHideTimeout) clearTimeout(autoHideTimeout);
 });

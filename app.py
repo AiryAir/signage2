@@ -62,6 +62,16 @@ def init_database():
         )
     ''')
     
+    # Add columns for remote management (safe for existing DBs)
+    try:
+        cursor.execute('ALTER TABLE displays ADD COLUMN last_seen TIMESTAMP')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    try:
+        cursor.execute('ALTER TABLE displays ADD COLUMN config_version INTEGER DEFAULT 1')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     # Create default admin user if none exists
     cursor.execute('SELECT COUNT(*) FROM users')
     if cursor.fetchone()[0] == 0:
@@ -270,16 +280,17 @@ def api_display(display_id):
         data = request.json
         layout_config = json.dumps(data.get('layout_config', {}))
         background_config = json.dumps(data.get('background_config', {}))
-        
+
         cursor.execute('''
-            UPDATE displays 
-            SET name = ?, description = ?, layout_config = ?, background_config = ?, updated_at = CURRENT_TIMESTAMP 
+            UPDATE displays
+            SET name = ?, description = ?, layout_config = ?, background_config = ?,
+                updated_at = CURRENT_TIMESTAMP, config_version = COALESCE(config_version, 0) + 1
             WHERE id = ?
         ''', (data.get('name'), data.get('description'), layout_config, background_config, display_id))
-        
+
         conn.commit()
         conn.close()
-        
+
         return jsonify({'success': True})
     
     elif request.method == 'DELETE':
@@ -424,6 +435,52 @@ def api_time():
         'date': now.strftime('%A, %B %d, %Y'),
         'timestamp': now.timestamp()
     })
+
+@app.route('/api/display/<int:display_id>/heartbeat', methods=['POST'])
+def api_heartbeat(display_id):
+    """Player heartbeat - updates last_seen, returns config_version."""
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE displays SET last_seen = CURRENT_TIMESTAMP WHERE id = ?', (display_id,))
+    conn.commit()
+    cursor.execute('SELECT config_version FROM displays WHERE id = ?', (display_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'Display not found'}), 404
+
+    return jsonify({'config_version': row[0] or 1})
+
+
+@app.route('/api/displays/status')
+@require_auth
+def api_displays_status():
+    """Get online/offline status for all displays."""
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, name, last_seen FROM displays')
+    displays_list = cursor.fetchall()
+    conn.close()
+
+    result = []
+    for d in displays_list:
+        is_online = False
+        if d[2]:
+            try:
+                last_seen = datetime.strptime(d[2], '%Y-%m-%d %H:%M:%S')
+                is_online = (datetime.now() - last_seen).total_seconds() < 90
+            except (ValueError, TypeError):
+                pass
+        result.append({
+            'id': d[0],
+            'name': d[1],
+            'last_seen': d[2],
+            'is_online': is_online
+        })
+
+    return jsonify(result)
+
 
 @app.route('/api/weather')
 def api_weather():

@@ -822,6 +822,47 @@ body {
     background: var(--primary-dark);
 }
 
+/* Display Status Indicators */
+.display-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.display-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+.status-online {
+    color: var(--success-color);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.status-online::before {
+    background: var(--success-color);
+    box-shadow: 0 0 4px var(--success-color);
+}
+
+.status-offline {
+    color: var(--text-light);
+    background: rgba(148, 163, 184, 0.1);
+}
+
+.status-offline::before {
+    background: var(--text-light);
+}
+
 /* Print Styles */
 @media print {
     .btn, .header-actions, .modal {

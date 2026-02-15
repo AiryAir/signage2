@@ -20,8 +20,11 @@
     
     <div class="displays-grid">
         {% for display in displays %}
-        <div class="display-card">
-            <h3>{{ display[1] }}</h3>
+        <div class="display-card" data-display-id="{{ display[0] }}">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <h3 style="margin: 0;">{{ display[1] }}</h3>
+                <span class="display-status" id="status-{{ display[0] }}"></span>
+            </div>
             <p>{{ display[2] or 'No description' }}</p>
             <p class="display-date">Created: {{ display[3][:10] }}</p>
             <div class="display-actions">
@@ -146,6 +149,48 @@ document.getElementById('createForm').addEventListener('submit', async function(
         alert('Error creating display');
     }
 });
+
+// Delete display
+async function deleteDisplay() {
+    if (!displayToDelete) return;
+    try {
+        const response = await fetch(`/api/display/${displayToDelete}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Failed to delete display: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error deleting display: ' + error.message);
+    }
+    closeDeleteModal();
+}
+
+// Display status polling
+async function refreshDisplayStatuses() {
+    try {
+        const response = await fetch('/api/displays/status');
+        const statuses = await response.json();
+        statuses.forEach(s => {
+            const badge = document.getElementById('status-' + s.id);
+            if (badge) {
+                if (s.is_online) {
+                    badge.className = 'display-status status-online';
+                    badge.textContent = 'Online';
+                } else {
+                    badge.className = 'display-status status-offline';
+                    badge.textContent = 'Offline';
+                }
+            }
+        });
+    } catch (e) {
+        console.warn('Status refresh failed:', e.message);
+    }
+}
+
+refreshDisplayStatuses();
+setInterval(refreshDisplayStatuses, 30000);
 
 // Close modals when clicking outside
 document.getElementById('createModal').addEventListener('click', function(e) {
