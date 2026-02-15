@@ -309,6 +309,13 @@ function openZoneModal(zoneId) {
     document.getElementById('rssMode').value = zone.rss_mode || 'list';
     document.getElementById('rssInterval').value = zone.rss_interval || 5;
 
+    // Populate schedule entries
+    const scheduleContainer = document.getElementById('scheduleEntries');
+    scheduleContainer.innerHTML = '';
+    if (zone.schedule && Array.isArray(zone.schedule)) {
+        zone.schedule.forEach(entry => addScheduleEntry(entry));
+    }
+
     // Set weather settings
     document.getElementById('weatherLocation').value = zone.weather_location || '';
     document.getElementById('weatherUnits').value = zone.weather_units || 'C';
@@ -353,12 +360,20 @@ function updateZoneContentUI() {
     const announcementSettings = document.getElementById('announcementSettings');
     const rssSettings = document.getElementById('rssSettings');
     const weatherSettings = document.getElementById('weatherSettings');
+    const scheduleSettings = document.getElementById('scheduleSettings');
 
     // Hide all type-specific settings by default
     clockSettings.style.display = 'none';
     announcementSettings.style.display = 'none';
     rssSettings.style.display = 'none';
     weatherSettings.style.display = 'none';
+    scheduleSettings.style.display = 'none';
+
+    // Show schedule for content types where it makes sense
+    const schedulableTypes = ['announcement', 'image', 'video', 'slideshow', 'iframe', 'rss'];
+    if (schedulableTypes.includes(zoneType)) {
+        scheduleSettings.style.display = 'block';
+    }
 
     switch (zoneType) {
         case 'empty':
@@ -445,6 +460,13 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
     if (zone.type === 'rss') {
         zone.rss_mode = document.getElementById('rssMode').value;
         zone.rss_interval = parseInt(document.getElementById('rssInterval').value) || 5;
+    }
+
+    // Schedule
+    const schedulableTypes = ['announcement', 'image', 'video', 'slideshow', 'iframe', 'rss'];
+    if (schedulableTypes.includes(zone.type)) {
+        const scheduleEntries = collectScheduleEntries();
+        zone.schedule = scheduleEntries.length > 0 ? scheduleEntries : undefined;
     }
 
     // Weather settings
@@ -562,6 +584,55 @@ function updateZoneBackgroundUI() {
             document.getElementById('zoneBgImage').style.display = 'block';
             break;
     }
+}
+
+// ─── Schedule Management ──────────────────────────────────────
+
+function addScheduleEntry(entry = null) {
+    const container = document.getElementById('scheduleEntries');
+    const idx = container.children.length;
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const div = document.createElement('div');
+    div.className = 'schedule-entry';
+    div.style.cssText = 'padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--background-secondary);';
+
+    let daysHtml = dayNames.map((d, i) => {
+        const checked = entry && entry.days && entry.days.includes(i) ? 'checked' : '';
+        return `<label style="display:inline-flex;align-items:center;gap:2px;font-size:0.75rem;font-weight:normal;"><input type="checkbox" class="schedule-day" value="${i}" ${checked}>${d}</label>`;
+    }).join(' ');
+
+    div.innerHTML = `
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+            <input type="text" class="schedule-label" placeholder="Label" value="${entry ? (entry.label || '') : ''}" style="flex:1;padding:0.375rem;">
+            <input type="time" class="schedule-start" value="${entry ? (entry.time_start || '') : ''}" style="padding:0.375rem;">
+            <span>to</span>
+            <input type="time" class="schedule-end" value="${entry ? (entry.time_end || '') : ''}" style="padding:0.375rem;">
+            <button type="button" class="btn btn-danger" onclick="this.closest('.schedule-entry').remove()" style="padding:0.375rem 0.5rem;min-height:auto;min-width:auto;">
+                <i class="material-icons" style="font-size:1rem;margin:0;">close</i>
+            </button>
+        </div>
+        <div style="margin-bottom:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">${daysHtml}</div>
+        <textarea class="schedule-content" rows="2" placeholder="Override content..." style="width:100%;padding:0.375rem;font-size:0.8rem;">${entry ? (entry.content || '') : ''}</textarea>
+    `;
+
+    container.appendChild(div);
+}
+
+function collectScheduleEntries() {
+    const entries = [];
+    document.querySelectorAll('.schedule-entry').forEach(div => {
+        const days = [];
+        div.querySelectorAll('.schedule-day:checked').forEach(cb => days.push(parseInt(cb.value)));
+        entries.push({
+            label: div.querySelector('.schedule-label').value,
+            time_start: div.querySelector('.schedule-start').value,
+            time_end: div.querySelector('.schedule-end').value,
+            days: days,
+            content: div.querySelector('.schedule-content').value
+        });
+    });
+    return entries;
 }
 
 async function searchWeatherLocation() {

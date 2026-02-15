@@ -8,6 +8,8 @@ let announcementIntervals = {};
 let rssRotationIntervals = {};
 let rssCache = {};
 let weatherIntervals = {};
+let schedulerInterval = null;
+let activeSchedules = {};
 let autoHideTimeout = null;
 
 function initializePlayer(config) {
@@ -36,6 +38,9 @@ function initializePlayer(config) {
 
     // Start auto-refresh for RSS feeds
     startRSSRefresh();
+
+    // Start content scheduler
+    startScheduler();
 
     // Handle fullscreen
     document.addEventListener('keydown', function(e) {
@@ -1027,6 +1032,104 @@ function startRSSRefresh() {
     }, 10 * 60 * 1000);
 }
 
+// ─── Content Scheduler ────────────────────────────────────────
+
+function startScheduler() {
+    checkSchedules();
+    schedulerInterval = setInterval(checkSchedules, 60 * 1000); // Check every minute
+}
+
+function checkSchedules() {
+    if (!displayConfig || !displayConfig.layout || !displayConfig.layout.zones) return;
+
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=Sun, 6=Sat
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
+
+    displayConfig.layout.zones.forEach((zone, index) => {
+        if (!zone.schedule || !Array.isArray(zone.schedule) || zone.schedule.length === 0) return;
+
+        let matchedSchedule = null;
+        for (const entry of zone.schedule) {
+            if (!entry.time_start || !entry.time_end) continue;
+
+            // Check day match
+            if (entry.days && Array.isArray(entry.days) && entry.days.length > 0) {
+                if (!entry.days.includes(currentDay)) continue;
+            }
+
+            // Parse time
+            const [startH, startM] = entry.time_start.split(':').map(Number);
+            const [endH, endM] = entry.time_end.split(':').map(Number);
+            const startMinutes = startH * 60 + startM;
+            const endMinutes = endH * 60 + endM;
+
+            if (currentTime >= startMinutes && currentTime < endMinutes) {
+                matchedSchedule = entry;
+                break;
+            }
+        }
+
+        const scheduleKey = matchedSchedule ? matchedSchedule.label || matchedSchedule.time_start : '__default__';
+        if (activeSchedules[index] !== scheduleKey) {
+            activeSchedules[index] = scheduleKey;
+            if (matchedSchedule && matchedSchedule.content !== undefined) {
+                updateZoneContent(index, matchedSchedule.content);
+            } else {
+                // Revert to base content
+                updateZoneContent(index, zone.content);
+            }
+        }
+    });
+}
+
+function updateZoneContent(index, newContent) {
+    const zoneElement = document.getElementById(`zone-${index}`);
+    if (!zoneElement) return;
+
+    const contentElement = zoneElement.querySelector('.zone-content');
+    if (!contentElement) return;
+
+    // Clear existing interval for this zone
+    if (announcementIntervals[index]) { clearInterval(announcementIntervals[index]); delete announcementIntervals[index]; }
+    if (slideshowIntervals[index]) { clearInterval(slideshowIntervals[index]); delete slideshowIntervals[index]; }
+    if (rssRotationIntervals[index]) { clearInterval(rssRotationIntervals[index]); delete rssRotationIntervals[index]; }
+
+    const zone = displayConfig.layout.zones[index];
+    const zoneWithContent = { ...zone, content: newContent };
+
+    // Clear content
+    contentElement.innerHTML = '';
+    contentElement.className = 'zone-content';
+
+    // Re-apply typography
+    const globalFont = displayConfig.layout.global_font || 'Arial, sans-serif';
+    contentElement.style.fontFamily = zone.font_family || globalFont;
+    contentElement.style.fontSize = zone.font_size || '16px';
+
+    // Re-create widget
+    switch (zone.type) {
+        case 'announcement':
+            createAnnouncementWidget(contentElement, zoneWithContent, index);
+            break;
+        case 'image':
+            createImageWidget(contentElement, newContent);
+            break;
+        case 'video':
+            createVideoWidget(contentElement, newContent);
+            break;
+        case 'slideshow':
+            createSlideshowWidget(contentElement, newContent, index);
+            break;
+        case 'iframe':
+            createIframeWidget(contentElement, newContent);
+            break;
+        case 'rss':
+            createRSSWidget(contentElement, zoneWithContent, index);
+            break;
+    }
+}
+
 // ─── Display Refresh & Cleanup ────────────────────────────────
 
 function refreshDisplay() {
@@ -1037,6 +1140,7 @@ function refreshDisplay() {
     Object.values(announcementIntervals).forEach(interval => clearInterval(interval));
     Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
     Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
+    if (schedulerInterval) clearInterval(schedulerInterval);
 
     if (autoHideTimeout) clearTimeout(autoHideTimeout);
 
@@ -1143,6 +1247,7 @@ window.addEventListener('beforeunload', function() {
     Object.values(announcementIntervals).forEach(interval => clearInterval(interval));
     Object.values(rssRotationIntervals).forEach(interval => clearInterval(interval));
     Object.values(weatherIntervals).forEach(interval => clearInterval(interval));
+    if (schedulerInterval) clearInterval(schedulerInterval);
 
     if (autoHideTimeout) clearTimeout(autoHideTimeout);
 });
