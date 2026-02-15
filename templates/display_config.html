@@ -195,6 +195,21 @@
                 <input type="range" id="zoneOpacity" min="0" max="1" step="0.1" value="1">
                 <span id="opacityValue">100%</span>
             </div>
+
+            <div class="config-section">
+                <h3>Zone Spanning</h3>
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="zoneColSpan">Column Span</label>
+                        <input type="number" id="zoneColSpan" value="1" min="1" max="4">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="zoneRowSpan">Row Span</label>
+                        <input type="number" id="zoneRowSpan" value="1" min="1" max="4">
+                    </div>
+                </div>
+                <div class="help-text">Zones that span multiple cells will cover adjacent grid positions</div>
+            </div>
             
             <div class="config-section">
                 <h3>Typography</h3>

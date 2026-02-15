@@ -156,13 +156,56 @@ async function handleImageUpload() {
 function generateGrid() {
     const rows = parseInt(document.getElementById('gridRows').value);
     const cols = parseInt(document.getElementById('gridCols').value);
-    
+
     // Update layout config
     currentLayout.grid = { rows, cols };
-    
-    // Ensure we have enough zones
-    const totalZones = rows * cols;
-    while (currentLayout.zones.length < totalZones) {
+
+    // Calculate how many zones fit based on spanning
+    // Count occupied cells from existing zones
+    const occupied = Array.from({ length: rows }, () => Array(cols).fill(false));
+    let placedCount = 0;
+
+    // First, try to place existing zones and count how many fit
+    for (let i = 0; i < currentLayout.zones.length; i++) {
+        const zone = currentLayout.zones[i];
+        const colSpan = Math.min(zone.col_span || 1, cols);
+        const rowSpan = Math.min(zone.row_span || 1, rows);
+        let placed = false;
+
+        for (let r = 0; r < rows && !placed; r++) {
+            for (let c = 0; c < cols && !placed; c++) {
+                if (occupied[r][c]) continue;
+                if (r + rowSpan > rows || c + colSpan > cols) continue;
+                let fits = true;
+                for (let dr = 0; dr < rowSpan && fits; dr++) {
+                    for (let dc = 0; dc < colSpan && fits; dc++) {
+                        if (occupied[r + dr][c + dc]) fits = false;
+                    }
+                }
+                if (fits) {
+                    for (let dr = 0; dr < rowSpan; dr++) {
+                        for (let dc = 0; dc < colSpan; dc++) {
+                            occupied[r + dr][c + dc] = true;
+                        }
+                    }
+                    placed = true;
+                    placedCount++;
+                }
+            }
+        }
+        if (!placed) break;
+    }
+
+    // Count remaining empty cells and add zones for them
+    let emptyCells = 0;
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (!occupied[r][c]) emptyCells++;
+        }
+    }
+
+    const neededZones = placedCount + emptyCells;
+    while (currentLayout.zones.length < neededZones) {
         currentLayout.zones.push({
             id: currentLayout.zones.length,
             type: 'empty',
@@ -175,31 +218,57 @@ function generateGrid() {
             time_format: '24h'
         });
     }
-    
-    // Remove extra zones
-    if (currentLayout.zones.length > totalZones) {
-        currentLayout.zones = currentLayout.zones.slice(0, totalZones);
+
+    // Trim excess zones that don't fit
+    if (currentLayout.zones.length > neededZones) {
+        currentLayout.zones = currentLayout.zones.slice(0, neededZones);
     }
-    
-    // Generate grid HTML
+
+    // Generate grid HTML with occupancy-based placement
     const gridPreview = document.getElementById('gridPreview');
     gridPreview.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     gridPreview.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    
     gridPreview.innerHTML = '';
-    
-    for (let i = 0; i < totalZones; i++) {
-        const zone = currentLayout.zones[i];
-        const zoneElement = document.createElement('div');
-        zoneElement.className = `zone ${zone.type !== 'empty' ? 'configured' : ''}`;
-        zoneElement.style.opacity = zone.opacity;
-        zoneElement.innerHTML = `
-            <div class="zone-label">Zone ${i + 1}</div>
-            ${zone.type !== 'empty' ? `<div class="zone-type">${zone.type}</div>` : ''}
-        `;
-        zoneElement.addEventListener('click', () => openZoneModal(i));
-        gridPreview.appendChild(zoneElement);
-    }
+
+    const occupied2 = Array.from({ length: rows }, () => Array(cols).fill(false));
+
+    currentLayout.zones.forEach((zone, i) => {
+        const colSpan = Math.min(zone.col_span || 1, cols);
+        const rowSpan = Math.min(zone.row_span || 1, rows);
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (occupied2[r][c]) continue;
+                if (r + rowSpan > rows || c + colSpan > cols) continue;
+                let fits = true;
+                for (let dr = 0; dr < rowSpan && fits; dr++) {
+                    for (let dc = 0; dc < colSpan && fits; dc++) {
+                        if (occupied2[r + dr][c + dc]) fits = false;
+                    }
+                }
+                if (fits) {
+                    for (let dr = 0; dr < rowSpan; dr++) {
+                        for (let dc = 0; dc < colSpan; dc++) {
+                            occupied2[r + dr][c + dc] = true;
+                        }
+                    }
+                    const zoneElement = document.createElement('div');
+                    zoneElement.className = `zone ${zone.type !== 'empty' ? 'configured' : ''}`;
+                    zoneElement.style.opacity = zone.opacity;
+                    zoneElement.style.gridColumn = `${c + 1} / span ${colSpan}`;
+                    zoneElement.style.gridRow = `${r + 1} / span ${rowSpan}`;
+                    const spanLabel = (colSpan > 1 || rowSpan > 1) ? ` <span style="font-size:0.7em; opacity:0.7;">(${colSpan}×${rowSpan})</span>` : '';
+                    zoneElement.innerHTML = `
+                        <div class="zone-label">Zone ${i + 1}${spanLabel}</div>
+                        ${zone.type !== 'empty' ? `<div class="zone-type">${zone.type}</div>` : ''}
+                    `;
+                    zoneElement.addEventListener('click', () => openZoneModal(i));
+                    gridPreview.appendChild(zoneElement);
+                    return; // placed this zone, move to next
+                }
+            }
+        }
+    });
 }
 
 function openZoneModal(zoneId) {
@@ -212,6 +281,13 @@ function openZoneModal(zoneId) {
     document.getElementById('zoneOpacity').value = zone.opacity;
     document.getElementById('opacityValue').textContent = Math.round(zone.opacity * 100) + '%';
     
+    // Set spanning
+    document.getElementById('zoneColSpan').value = zone.col_span || 1;
+    document.getElementById('zoneRowSpan').value = zone.row_span || 1;
+    // Update max span values based on grid dimensions
+    document.getElementById('zoneColSpan').max = currentLayout.grid.cols;
+    document.getElementById('zoneRowSpan').max = currentLayout.grid.rows;
+
     // Set typography
     document.getElementById('zoneFontFamily').value = zone.font_family || '';
     document.getElementById('zoneFontSize').value = zone.font_size || '16px';
@@ -344,6 +420,10 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
     zone.content = document.getElementById('zoneContent').value;
     zone.opacity = parseFloat(document.getElementById('zoneOpacity').value);
     
+    // Spanning
+    zone.col_span = parseInt(document.getElementById('zoneColSpan').value) || 1;
+    zone.row_span = parseInt(document.getElementById('zoneRowSpan').value) || 1;
+
     // Typography
     zone.font_family = document.getElementById('zoneFontFamily').value;
     zone.font_size = document.getElementById('zoneFontSize').value;

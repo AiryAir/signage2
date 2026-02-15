@@ -171,12 +171,48 @@ function setupGrid() {
     // Clear existing zones
     displayGrid.innerHTML = '';
 
-    // Create zones
+    // Create zones with occupancy-based placement for spanning support
     if (displayConfig.layout.zones && Array.isArray(displayConfig.layout.zones)) {
+        const rows = grid.rows;
+        const cols = grid.cols;
+        // Occupancy grid to track which cells are taken
+        const occupied = Array.from({ length: rows }, () => Array(cols).fill(false));
+
         displayConfig.layout.zones.forEach((zone, index) => {
-            console.log('Creating zone:', index, zone);
-            const zoneElement = createZone(zone, index);
-            displayGrid.appendChild(zoneElement);
+            const colSpan = Math.min(zone.col_span || 1, cols);
+            const rowSpan = Math.min(zone.row_span || 1, rows);
+
+            // Find next unoccupied cell that can fit this zone
+            let placed = false;
+            for (let r = 0; r < rows && !placed; r++) {
+                for (let c = 0; c < cols && !placed; c++) {
+                    if (occupied[r][c]) continue;
+                    // Check if the span fits from this position
+                    if (r + rowSpan > rows || c + colSpan > cols) continue;
+                    let fits = true;
+                    for (let dr = 0; dr < rowSpan && fits; dr++) {
+                        for (let dc = 0; dc < colSpan && fits; dc++) {
+                            if (occupied[r + dr][c + dc]) fits = false;
+                        }
+                    }
+                    if (fits) {
+                        // Mark cells as occupied
+                        for (let dr = 0; dr < rowSpan; dr++) {
+                            for (let dc = 0; dc < colSpan; dc++) {
+                                occupied[r + dr][c + dc] = true;
+                            }
+                        }
+                        const zoneElement = createZone(zone, index);
+                        zoneElement.style.gridColumn = `${c + 1} / span ${colSpan}`;
+                        zoneElement.style.gridRow = `${r + 1} / span ${rowSpan}`;
+                        displayGrid.appendChild(zoneElement);
+                        placed = true;
+                    }
+                }
+            }
+            if (!placed) {
+                console.warn('Zone', index, 'could not be placed (grid full or span too large)');
+            }
         });
     } else {
         console.error('No zones found in layout configuration');
