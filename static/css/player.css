@@ -993,6 +993,74 @@ body.bg-image {
 }
 
 /* ==========================================
+   ORIENTATION MODES
+   ========================================== */
+.portrait-mode {
+    --topbar-height: 48px;
+}
+
+.portrait-mode .top-bar {
+    padding: 0 16px;
+}
+
+.portrait-mode .time-display {
+    font-size: 1.5rem;
+}
+
+.portrait-mode .date-display {
+    font-size: 0.85rem;
+}
+
+.portrait-mode .clock-time {
+    font-size: clamp(2rem, 6vw, 3.5rem);
+}
+
+.portrait-mode .clock-date {
+    font-size: clamp(0.8rem, 1.5vw, 1rem);
+}
+
+.portrait-mode .weather-container {
+    gap: 8px;
+}
+
+.portrait-mode .weather-temp {
+    font-size: clamp(1.5rem, 6vw, 3rem);
+}
+
+.portrait-mode .weather-forecast {
+    flex-direction: column;
+    align-items: center;
+}
+
+.portrait-mode .weather-forecast-day {
+    flex-direction: row;
+    min-width: auto;
+    width: 100%;
+    max-width: 200px;
+    justify-content: space-between;
+}
+
+.portrait-mode .rss-ticker-inner,
+.portrait-mode .announcement-marquee-inner {
+    animation-duration: calc(var(--ticker-duration, 30s) * 1.5) !important;
+}
+
+/* Auto orientation via media query */
+@media (orientation: portrait) {
+    body:not(.landscape-mode) {
+        --topbar-height: 48px;
+    }
+
+    body:not(.landscape-mode) .time-display {
+        font-size: 1.5rem;
+    }
+
+    body:not(.landscape-mode) .date-display {
+        font-size: 0.85rem;
+    }
+}
+
+/* ==========================================
    RESPONSIVE ADJUSTMENTS
    ========================================== */
 @media (max-width: 1400px) {

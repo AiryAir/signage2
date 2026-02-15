@@ -26,6 +26,9 @@ function initializePlayer(config) {
         return;
     }
 
+    // Set up orientation
+    setupOrientation();
+
     // Set up background
     setupBackground();
 
@@ -83,6 +86,7 @@ function initializePlayer(config) {
             // Update config and re-initialize
             displayConfig.layout = e.data.layout;
             displayConfig.background = e.data.background;
+            setupOrientation();
             setupBackground();
             setupTopBar();
             setupGrid();
@@ -152,6 +156,20 @@ function setupAutoHide(topBar) {
             showBar();
         }
     });
+}
+
+// ─── Orientation ──────────────────────────────────────────────
+
+function setupOrientation() {
+    const orientation = (displayConfig.layout && displayConfig.layout.orientation) || 'landscape';
+    document.body.classList.remove('portrait-mode', 'landscape-mode');
+
+    if (orientation === 'portrait') {
+        document.body.classList.add('portrait-mode');
+    } else if (orientation === 'landscape') {
+        document.body.classList.add('landscape-mode');
+    }
+    // 'auto' mode relies on CSS @media (orientation: portrait)
 }
 
 // ─── Background ───────────────────────────────────────────────

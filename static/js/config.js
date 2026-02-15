@@ -20,6 +20,9 @@ function initializeConfig(displayId, layoutConfig, backgroundConfig) {
     currentLayout.top_bar = topBar;
     document.getElementById('topBarMode').value = topBar.mode;
     document.getElementById('topBarShowSeconds').checked = topBar.show_seconds !== false;
+
+    // Set orientation
+    document.getElementById('orientationMode').value = layoutConfig.orientation || 'landscape';
     
     // Set background
     if (backgroundConfig.type === 'color') {
@@ -51,6 +54,12 @@ function bindEvents() {
     // Top bar changes
     document.getElementById('topBarMode').addEventListener('change', updateTopBar);
     document.getElementById('topBarShowSeconds').addEventListener('change', updateTopBar);
+
+    // Orientation change
+    document.getElementById('orientationMode').addEventListener('change', function() {
+        currentLayout.orientation = this.value;
+        updateLivePreview();
+    });
 
     // Background type changes
     document.querySelectorAll('input[name="bgType"]').forEach(radio => {
