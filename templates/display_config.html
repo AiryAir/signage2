@@ -159,6 +159,20 @@
             <div class="grid-preview" id="gridPreview">
                 <!-- Grid zones will be generated here -->
             </div>
+            <div class="live-preview-section" style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary);">Live Preview</h3>
+                    <button type="button" class="btn btn-secondary" onclick="refreshPreview()" style="padding: 0.375rem 0.75rem; min-height: auto; font-size: 0.75rem;">
+                        <i class="material-icons" style="font-size: 0.875rem; margin-right: 0.25rem;">refresh</i>
+                        Refresh
+                    </button>
+                </div>
+                <div style="position: relative; width: 100%; padding-bottom: 56.25%; background: #0a0a0f; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color);">
+                    <iframe id="livePreview" src="/player/{{ display[0] }}?preview=1"
+                            style="position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: top left; border: none;">
+                    </iframe>
+                </div>
+            </div>
         </div>
     </div>
 </div>

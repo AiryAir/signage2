@@ -124,6 +124,7 @@ function updateBackground() {
             value: currentBackground.value || ''
         };
     }
+    updateLivePreview();
 }
 
 async function handleImageUpload() {
@@ -478,7 +479,33 @@ document.getElementById('zoneForm').addEventListener('submit', function(e) {
     
     closeZoneModal();
     generateGrid();
+    updateLivePreview();
 });
+
+// ─── Live Preview ─────────────────────────────────────────────
+
+let _previewDebounceTimer = null;
+
+function updateLivePreview() {
+    clearTimeout(_previewDebounceTimer);
+    _previewDebounceTimer = setTimeout(() => {
+        const iframe = document.getElementById('livePreview');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: 'configUpdate',
+                layout: currentLayout,
+                background: currentBackground
+            }, '*');
+        }
+    }, 500);
+}
+
+function refreshPreview() {
+    const iframe = document.getElementById('livePreview');
+    if (iframe) {
+        iframe.src = iframe.src;
+    }
+}
 
 async function saveConfiguration() {
     const displayName = document.getElementById('displayName').value;
@@ -504,6 +531,7 @@ async function saveConfiguration() {
 function updateGlobalFont() {
     const globalFont = document.getElementById('globalFont').value;
     currentLayout.global_font = globalFont;
+    updateLivePreview();
 }
 
 function updateTopBar() {
@@ -511,6 +539,7 @@ function updateTopBar() {
         mode: document.getElementById('topBarMode').value,
         show_seconds: document.getElementById('topBarShowSeconds').checked
     };
+    updateLivePreview();
 }
 
 function updateZoneBackgroundUI() {

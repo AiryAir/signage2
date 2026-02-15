@@ -50,6 +50,35 @@ function initializePlayer(config) {
 
     // Auto-refresh display every 5 minutes
     setInterval(refreshDisplay, 5 * 60 * 1000);
+
+    // Listen for live preview config updates from parent (config page iframe)
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'configUpdate') {
+            console.log('Received config update from parent');
+            // Clear all intervals
+            if (clockInterval) clearInterval(clockInterval);
+            Object.values(timerIntervals).forEach(i => clearInterval(i));
+            Object.values(slideshowIntervals).forEach(i => clearInterval(i));
+            Object.values(announcementIntervals).forEach(i => clearInterval(i));
+            Object.values(rssRotationIntervals).forEach(i => clearInterval(i));
+            Object.values(weatherIntervals).forEach(i => clearInterval(i));
+            if (autoHideTimeout) clearTimeout(autoHideTimeout);
+
+            timerIntervals = {};
+            slideshowIntervals = {};
+            announcementIntervals = {};
+            rssRotationIntervals = {};
+            weatherIntervals = {};
+
+            // Update config and re-initialize
+            displayConfig.layout = e.data.layout;
+            displayConfig.background = e.data.background;
+            setupBackground();
+            setupTopBar();
+            setupGrid();
+            startClock();
+        }
+    });
 }
 
 // ─── Top Bar ──────────────────────────────────────────────────
