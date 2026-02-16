@@ -115,7 +115,7 @@ body.bg-image {
 
 .time-display {
     font-size: 2rem;
-    font-weight: 600;
+    font-weight: inherit;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.85) 100%);
@@ -131,7 +131,6 @@ body.bg-image {
 }
 
 .time-display .clock-separator {
-    animation: separatorBlink 1s step-end infinite;
     margin: 0 1px;
 }
 
@@ -153,7 +152,7 @@ body.bg-image {
 
 .date-display {
     font-size: 1.1rem;
-    font-weight: 400;
+    font-weight: inherit;
     color: var(--text-secondary);
     letter-spacing: 0.01em;
 }
@@ -174,9 +173,14 @@ body.bg-image {
     transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Grid gets full viewport when top bar is overlay/hidden/auto-hide */
+/* Grid gets full viewport when top bar is hidden/auto-hide */
 .display-grid--full {
     top: 0;
+}
+
+/* When overlay mode, add top padding so content isn't hidden behind the bar */
+.top-bar--overlay ~ .display-grid--full {
+    padding-top: calc(var(--topbar-height) + var(--zone-gap));
 }
 
 /* ==========================================
@@ -201,9 +205,7 @@ body.bg-image {
     }
 }
 
-.player-zone:hover {
-    transform: scale(1.003);
-}
+/* No hover effect on player zones */
 
 .zone-content {
     width: 100%;
@@ -294,7 +296,6 @@ body.bg-image {
 }
 
 .clock-time .clock-separator {
-    animation: separatorBlink 1s step-end infinite;
     margin: 0 2px;
 }
 
@@ -510,8 +511,20 @@ body.bg-image {
 .widget-rss {
     padding: 20px;
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.2) transparent;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+}
+
+.widget-rss > [id^="rss-content-"] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 
 .widget-rss::-webkit-scrollbar {
@@ -532,12 +545,13 @@ body.bg-image {
 }
 
 .rss-title {
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
     font-weight: 600;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     text-align: center;
     color: var(--text-primary);
     letter-spacing: -0.01em;
+    flex-shrink: 0;
 }
 
 .rss-item {
@@ -568,27 +582,36 @@ body.bg-image {
     }
 }
 
-.rss-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    transform: translateX(4px);
-}
+/* No hover effect on RSS items in player */
 
 .rss-item-title {
-    font-size: 1.1rem;
+    font-size: clamp(1.1rem, 2.5vw, 2rem);
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--text-primary);
     line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .rss-item-description {
-    font-size: 0.95rem;
+    font-size: clamp(0.95rem, 1.8vw, 1.4rem);
     color: var(--text-secondary);
     line-height: 1.6;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .rss-item-date {
-    font-size: 0.8rem;
+    font-size: clamp(0.8rem, 1.2vw, 1.1rem);
     color: var(--text-muted);
     margin-top: 10px;
     display: flex;
@@ -616,17 +639,25 @@ body.bg-image {
     position: relative;
     width: 100%;
     flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .rss-single-item .rss-item {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     margin: 0;
     opacity: 0;
     transition: opacity 0.6s ease;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    overflow: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .rss-single-item .rss-item.active {
@@ -951,10 +982,7 @@ body.bg-image {
     100% { transform: translateX(100%); }
 }
 
-@keyframes separatorBlink {
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0; }
-}
+/* separator blink removed — static colon */
 
 /* Widget error state */
 .widget-error {

@@ -127,9 +127,13 @@ function setupTopBar() {
     // Handle show_seconds for top bar
     const showSeconds = topBarConfig.show_seconds !== false; // default true
     const secondsEl = topBar.querySelector('.clock-seconds');
-    if (secondsEl && !showSeconds) {
-        secondsEl.style.display = 'none';
+    if (secondsEl) {
+        secondsEl.style.display = showSeconds ? '' : 'none';
     }
+
+    // Handle font weight for top bar
+    const fontWeight = topBarConfig.font_weight || '700';
+    topBar.style.fontWeight = fontWeight;
 }
 
 function setupAutoHide(topBar) {
@@ -172,14 +176,36 @@ function setupOrientation() {
     // 'auto' mode relies on CSS @media (orientation: portrait)
 }
 
+// ─── Font Loading ─────────────────────────────────────────────
+
+const _loadedFonts = new Set();
+
+function loadGoogleFont(fontFamily) {
+    // Extract the primary font name (before the comma/fallback)
+    const primary = fontFamily.split(',')[0].trim().replace(/['"]/g, '');
+    if (!primary || _loadedFonts.has(primary)) return;
+
+    // Skip system fonts that don't need loading
+    const systemFonts = ['Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Trebuchet MS', 'Lucida Console', 'Impact', 'Comic Sans MS', 'sans-serif', 'serif', 'monospace'];
+    if (systemFonts.includes(primary)) return;
+
+    _loadedFonts.add(primary);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(primary)}:wght@200;300;400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+    console.log('Loaded Google Font:', primary);
+}
+
 // ─── Background ───────────────────────────────────────────────
 
 function setupBackground() {
     const body = document.body;
     const bg = displayConfig.background;
 
-    // Apply global font to body (affects top bar)
+    // Apply global font to body (affects top bar and all zones)
     const globalFont = displayConfig.layout.global_font || 'Arial, sans-serif';
+    loadGoogleFont(globalFont);
     body.style.fontFamily = globalFont;
     console.log('Applied global font to body:', globalFont);
 
@@ -326,6 +352,8 @@ function createZone(zone, index) {
     const zoneFont = zone.font_family || globalFont;
     const zoneFontSize = zone.font_size || '16px';
 
+    if (zone.font_family) loadGoogleFont(zone.font_family);
+    zoneElement.style.fontFamily = zoneFont;
     contentElement.style.fontFamily = zoneFont;
     contentElement.style.fontSize = zoneFontSize;
 
@@ -778,7 +806,7 @@ function updateClock() {
 
     if (tbHours) tbHours.textContent = hours24;
     if (tbMinutes) tbMinutes.textContent = minutes;
-    if (tbSeconds) tbSeconds.textContent = seconds;
+    if (tbSeconds) tbSeconds.textContent = ':' + seconds;
 
     document.getElementById('currentDate').textContent = formatDateFull(now);
 
@@ -796,7 +824,7 @@ function updateClock() {
 
         if (clockHours) clockHours.textContent = timeFormat === '12h' ? hours12 : hours24;
         if (clockMinutes) clockMinutes.textContent = minutes;
-        if (clockSeconds) clockSeconds.textContent = seconds;
+        if (clockSeconds) clockSeconds.textContent = ':' + seconds;
         if (clockAmpm) clockAmpm.textContent = ampm;
 
         if (clockDate) {

@@ -3,455 +3,117 @@
 {% block title %}Configure Display - Digital Signage{% endblock %}
 
 {% block body %}
-<div class="container">
-    <header class="header">
-        <h1>Configure Display: {{ display[1] }}</h1>
-        <div class="header-actions">
-            <a href="/player/{{ display[0] }}" class="btn btn-success" target="_blank">
-                <i class="material-icons">play_arrow</i>
-                Preview
-            </a>
-            <a href="/displays" class="btn btn-secondary">
+<div class="config-container">
+    <!-- Sticky Header -->
+    <header class="config-header">
+        <div class="config-header-left">
+            <a href="/displays" class="btn btn-secondary btn-sm" title="Back to Displays">
                 <i class="material-icons">arrow_back</i>
-                Back to Displays
             </a>
+            <div class="config-header-title">
+                <span class="config-header-label">Configure</span>
+                <input type="text" id="displayName" value="{{ display[1] }}" class="config-title-input" spellcheck="false">
+            </div>
+        </div>
+        <div class="config-header-right">
+            <button type="button" class="btn btn-secondary btn-sm" id="previewToggleBtn" onclick="togglePreview()">
+                <i class="material-icons">visibility</i>
+                Preview
+            </button>
+            <a href="/player/{{ display[0] }}" class="btn btn-secondary btn-sm" target="_blank">
+                <i class="material-icons">open_in_new</i>
+                Open Player
+            </a>
+            <button type="button" class="btn btn-primary btn-sm" id="saveBtn" onclick="saveConfig()">
+                <i class="material-icons">save</i>
+                Save Changes
+            </button>
         </div>
     </header>
-    
-    <div class="config-layout">
-        <div class="config-sidebar">
-            <div class="config-section">
-                <h3>Display Settings</h3>
-                <div class="form-group">
-                    <label for="displayName">Name</label>
-                    <input type="text" id="displayName" value="{{ display[1] }}">
-                </div>
-                <div class="form-group">
-                    <label for="displayDescription">Description</label>
-                    <textarea id="displayDescription" rows="3">{{ display[2] or '' }}</textarea>
-                </div>
-                <div class="form-group">
-                    <label for="orientationMode">Screen Orientation</label>
-                    <select id="orientationMode">
-                        <option value="landscape">Landscape</option>
-                        <option value="portrait">Portrait</option>
-                        <option value="auto">Auto (detect)</option>
+
+    <!-- Main Body: Center + Panel -->
+    <div class="config-body">
+        <!-- Center: Toolbar + Grid -->
+        <div class="config-center">
+            <div class="grid-toolbar">
+                <div class="toolbar-group">
+                    <label class="toolbar-label">Grid</label>
+                    <select id="gridRows" class="toolbar-select">
+                        <option value="1">1 row</option>
+                        <option value="2">2 rows</option>
+                        <option value="3">3 rows</option>
+                        <option value="4">4 rows</option>
+                    </select>
+                    <span class="toolbar-x">&times;</span>
+                    <select id="gridCols" class="toolbar-select">
+                        <option value="1">1 col</option>
+                        <option value="2">2 cols</option>
+                        <option value="3">3 cols</option>
+                        <option value="4">4 cols</option>
                     </select>
                 </div>
-            </div>
-            
-            <div class="config-section">
-                <h3>Global Settings</h3>
-                <div class="form-group">
-                    <label for="globalFont">Global Font Family</label>
-                    <select id="globalFont">
-                        <optgroup label="Modern Sans-Serif">
-                            <option value="Inter, sans-serif">Inter</option>
-                            <option value="'Work Sans', sans-serif">Work Sans</option>
-                            <option value="Manrope, sans-serif">Manrope</option>
-                            <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
-                            <option value="'IBM Plex Sans', sans-serif">IBM Plex Sans</option>
-                            <option value="Rubik, sans-serif">Rubik</option>
-                            <option value="'DM Sans', sans-serif">DM Sans</option>
-                            <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
-                            <option value="Outfit, sans-serif">Outfit</option>
-                            <option value="Lexend, sans-serif">Lexend</option>
-                            <option value="Sora, sans-serif">Sora</option>
-                        </optgroup>
-                        <optgroup label="Popular Sans-Serif">
-                            <option value="Roboto, sans-serif">Roboto</option>
-                            <option value="'Open Sans', sans-serif">Open Sans</option>
-                            <option value="Lato, sans-serif">Lato</option>
-                            <option value="Montserrat, sans-serif">Montserrat</option>
-                            <option value="Poppins, sans-serif">Poppins</option>
-                            <option value="'Source Sans Pro', sans-serif">Source Sans Pro</option>
-                            <option value="Ubuntu, sans-serif">Ubuntu</option>
-                            <option value="Nunito, sans-serif">Nunito</option>
-                            <option value="Raleway, sans-serif">Raleway</option>
-                            <option value="'PT Sans', sans-serif">PT Sans</option>
-                            <option value="Oswald, sans-serif">Oswald</option>
-                            <option value="'Fira Sans', sans-serif">Fira Sans</option>
-                            <option value="Barlow, sans-serif">Barlow</option>
-                            <option value="Quicksand, sans-serif">Quicksand</option>
-                            <option value="Karla, sans-serif">Karla</option>
-                            <option value="Mulish, sans-serif">Mulish</option>
-                            <option value="'Red Hat Display', sans-serif">Red Hat Display</option>
-                        </optgroup>
-                        <optgroup label="Serif Fonts">
-                            <option value="'Playfair Display', serif">Playfair Display</option>
-                            <option value="Merriweather, serif">Merriweather</option>
-                            <option value="'Roboto Slab', serif">Roboto Slab</option>
-                        </optgroup>
-                        <optgroup label="System Fonts">
-                            <option value="Arial, sans-serif">Arial</option>
-                            <option value="'Times New Roman', serif">Times New Roman</option>
-                            <option value="'Courier New', monospace">Courier New</option>
-                            <option value="Georgia, serif">Georgia</option>
-                            <option value="Verdana, sans-serif">Verdana</option>
-                            <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-                            <option value="'Lucida Console', monospace">Lucida Console</option>
-                            <option value="Impact, sans-serif">Impact</option>
-                            <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
-                        </optgroup>
-                    </select>
+                <div class="toolbar-group">
+                    <button type="button" id="mergeToggleBtn" class="btn btn-secondary btn-sm" onclick="toggleMergeMode()">
+                        <i class="material-icons">merge_type</i>
+                        Merge
+                    </button>
+                    <button type="button" id="mergeApplyBtn" class="btn btn-primary btn-sm" onclick="applyMerge()" style="display:none;">
+                        <i class="material-icons">check</i>
+                        Apply Merge
+                    </button>
+                    <button type="button" id="mergeCancelBtn" class="btn btn-secondary btn-sm" onclick="toggleMergeMode()" style="display:none;">
+                        Cancel
+                    </button>
+                    <span id="mergeHint" class="toolbar-hint" style="display:none;">Click zones to select, then apply merge</span>
                 </div>
             </div>
 
-            <div class="config-section">
-                <h3>Top Bar</h3>
-                <div class="form-group">
-                    <label for="topBarMode">Top Bar Mode</label>
-                    <select id="topBarMode">
-                        <option value="visible">Always Visible</option>
-                        <option value="overlay">Overlay (transparent)</option>
-                        <option value="auto-hide">Auto-Hide</option>
-                        <option value="hidden">Hidden</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="topBarShowSeconds" checked>
-                        Show seconds in top bar clock
-                    </label>
-                </div>
-            </div>
-
-            <div class="config-section">
-                <h3>Grid Layout</h3>
-                <div class="form-group">
-                    <label for="gridRows">Rows</label>
-                    <select id="gridRows">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="gridCols">Columns</label>
-                    <select id="gridCols">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="config-section">
-                <h3>Background</h3>
-                <div class="form-group">
-                    <label>Background Type</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="bgType" value="color" checked> Color</label>
-                        <label><input type="radio" name="bgType" value="gradient"> Gradient</label>
-                        <label><input type="radio" name="bgType" value="image"> Image</label>
-                    </div>
-                </div>
-                <div id="colorPicker" class="form-group">
-                    <label for="bgColor">Background Color</label>
-                    <input type="color" id="bgColor" value="#1a1a1a">
-                </div>
-                <div id="gradientPicker" class="form-group" style="display: none;">
-                    <label for="bgGradient">CSS Gradient</label>
-                    <input type="text" id="bgGradient" placeholder="linear-gradient(135deg, #0f0c29, #302b63, #24243e)" value="linear-gradient(135deg, #0f0c29, #302b63, #24243e)">
-                    <div id="gradientPreview" style="height: 40px; border-radius: var(--radius-md); margin-top: 0.5rem; border: 1px solid var(--border-color);"></div>
-                    <div class="help-text">Enter any valid CSS gradient value</div>
-                </div>
-                <div id="imagePicker" class="form-group" style="display: none;">
-                    <label for="bgImage">Upload Image</label>
-                    <input type="file" id="bgImage" accept="image/*">
-                    <div id="currentImage"></div>
-                </div>
-            </div>
-            
-            <div class="config-section">
-                <button id="saveBtn" class="btn btn-primary">Save Changes</button>
+            <div class="grid-canvas" id="gridPreview">
+                <!-- Zones rendered by JS -->
             </div>
         </div>
-        
-        <div class="config-main">
-            <div class="grid-preview" id="gridPreview">
-                <!-- Grid zones will be generated here -->
-            </div>
-            <div class="live-preview-section" style="margin-top: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h3 style="margin: 0; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary);">Live Preview</h3>
-                    <button type="button" class="btn btn-secondary" onclick="refreshPreview()" style="padding: 0.375rem 0.75rem; min-height: auto; font-size: 0.75rem;">
-                        <i class="material-icons" style="font-size: 0.875rem; margin-right: 0.25rem;">refresh</i>
-                        Refresh
-                    </button>
-                </div>
-                <div style="position: relative; width: 100%; padding-bottom: 56.25%; background: #0a0a0f; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color);">
-                    <iframe id="livePreview" src="/player/{{ display[0] }}?preview=1"
-                            style="position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: top left; border: none;">
-                    </iframe>
-                </div>
+
+        <!-- Right Panel -->
+        <div class="config-panel">
+            <div id="panelContent">
+                <!-- Filled dynamically by renderPanel() -->
             </div>
         </div>
     </div>
-</div>
 
-<!-- Zone Configuration Modal -->
-<div id="zoneModal" class="modal" style="display: none;">
-    <div class="modal-content large">
-        <h3>Configure Zone <span id="zoneNumber"></span></h3>
-        <form id="zoneForm">
-            <div class="form-group">
-                <label for="zoneType">Zone Type</label>
-                <select id="zoneType">
-                    <option value="empty">Empty</option>
-                    <option value="clock">Clock</option>
-                    <option value="timer">Timer</option>
-                    <option value="announcement">Announcement</option>
-                    <option value="iframe">iframe Embed</option>
-                    <option value="rss">RSS Feed</option>
-                    <option value="image">Image</option>
-                    <option value="video">Video</option>
-                    <option value="slideshow">Slideshow</option>
-                    <option value="weather">Weather</option>
-                </select>
-            </div>
-            
-            <div id="zoneContentGroup" class="form-group">
-                <label for="zoneContent" id="zoneContentLabel">Content</label>
-                <textarea id="zoneContent" rows="4"></textarea>
-                <div id="contentHelp" class="help-text"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="zoneOpacity">Zone Opacity</label>
-                <input type="range" id="zoneOpacity" min="0" max="1" step="0.1" value="1">
-                <span id="opacityValue">100%</span>
-            </div>
-
-            <div class="config-section">
-                <h3>Zone Spanning</h3>
-                <div style="display: flex; gap: 1rem;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="zoneColSpan">Column Span</label>
-                        <input type="number" id="zoneColSpan" value="1" min="1" max="4">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="zoneRowSpan">Row Span</label>
-                        <input type="number" id="zoneRowSpan" value="1" min="1" max="4">
-                    </div>
-                </div>
-                <div class="help-text">Zones that span multiple cells will cover adjacent grid positions</div>
-            </div>
-            
-            <div class="config-section">
-                <h3>Typography</h3>
-                <div class="form-group">
-                    <label for="zoneFontFamily">Font Family</label>
-                    <select id="zoneFontFamily">
-                        <option value="">Use Global Font</option>
-                        <optgroup label="Modern Sans-Serif">
-                            <option value="Inter, sans-serif">Inter</option>
-                            <option value="'Work Sans', sans-serif">Work Sans</option>
-                            <option value="Manrope, sans-serif">Manrope</option>
-                            <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
-                            <option value="'IBM Plex Sans', sans-serif">IBM Plex Sans</option>
-                            <option value="Rubik, sans-serif">Rubik</option>
-                            <option value="'DM Sans', sans-serif">DM Sans</option>
-                            <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
-                            <option value="Outfit, sans-serif">Outfit</option>
-                            <option value="Lexend, sans-serif">Lexend</option>
-                            <option value="Sora, sans-serif">Sora</option>
-                        </optgroup>
-                        <optgroup label="Popular Sans-Serif">
-                            <option value="Roboto, sans-serif">Roboto</option>
-                            <option value="'Open Sans', sans-serif">Open Sans</option>
-                            <option value="Lato, sans-serif">Lato</option>
-                            <option value="Montserrat, sans-serif">Montserrat</option>
-                            <option value="Poppins, sans-serif">Poppins</option>
-                            <option value="'Source Sans Pro', sans-serif">Source Sans Pro</option>
-                            <option value="Ubuntu, sans-serif">Ubuntu</option>
-                            <option value="Nunito, sans-serif">Nunito</option>
-                            <option value="Raleway, sans-serif">Raleway</option>
-                            <option value="'PT Sans', sans-serif">PT Sans</option>
-                            <option value="Oswald, sans-serif">Oswald</option>
-                            <option value="'Fira Sans', sans-serif">Fira Sans</option>
-                            <option value="Barlow, sans-serif">Barlow</option>
-                            <option value="Quicksand, sans-serif">Quicksand</option>
-                            <option value="Karla, sans-serif">Karla</option>
-                            <option value="Mulish, sans-serif">Mulish</option>
-                            <option value="'Red Hat Display', sans-serif">Red Hat Display</option>
-                        </optgroup>
-                        <optgroup label="Serif Fonts">
-                            <option value="'Playfair Display', serif">Playfair Display</option>
-                            <option value="Merriweather, serif">Merriweather</option>
-                            <option value="'Roboto Slab', serif">Roboto Slab</option>
-                        </optgroup>
-                        <optgroup label="System Fonts">
-                            <option value="Arial, sans-serif">Arial</option>
-                            <option value="'Times New Roman', serif">Times New Roman</option>
-                            <option value="'Courier New', monospace">Courier New</option>
-                            <option value="Georgia, serif">Georgia</option>
-                            <option value="Verdana, sans-serif">Verdana</option>
-                            <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-                            <option value="'Lucida Console', monospace">Lucida Console</option>
-                            <option value="Impact, sans-serif">Impact</option>
-                            <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="zoneFontSize">Font Size</label>
-                    <input type="text" id="zoneFontSize" placeholder="16px, 1.2em, etc.">
-                </div>
-            </div>
-            
-            <div id="announcementSettings" class="config-section" style="display: none;">
-                <h3>Announcement Settings</h3>
-                <div class="form-group">
-                    <label for="announcementMode">Display Mode</label>
-                    <select id="announcementMode">
-                        <option value="static">Static</option>
-                        <option value="crossfade">Crossfade (rotate lines)</option>
-                        <option value="marquee">Marquee (scrolling)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="announcementInterval">Rotation Interval (seconds)</label>
-                    <input type="number" id="announcementInterval" value="5" min="1" max="60">
-                    <div class="help-text">Used for crossfade mode only</div>
-                </div>
-            </div>
-
-            <div id="rssSettings" class="config-section" style="display: none;">
-                <h3>RSS Display Settings</h3>
-                <div class="form-group">
-                    <label for="rssMode">Display Mode</label>
-                    <select id="rssMode">
-                        <option value="list">List (show all)</option>
-                        <option value="rotate">Rotate (one at a time)</option>
-                        <option value="ticker">Ticker (horizontal scroll)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="rssInterval">Rotation Interval (seconds)</label>
-                    <input type="number" id="rssInterval" value="5" min="1" max="60">
-                    <div class="help-text">Used for rotate mode only</div>
-                </div>
-            </div>
-
-            <div id="weatherSettings" class="config-section" style="display: none;">
-                <h3>Weather Settings</h3>
-                <div class="form-group">
-                    <label for="weatherLocation">Location</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="weatherLocation" placeholder="Enter city name...">
-                        <button type="button" class="btn btn-primary" onclick="searchWeatherLocation()" style="white-space: nowrap;">Search</button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="weatherUnits">Temperature Units</label>
-                    <select id="weatherUnits">
-                        <option value="C">Celsius (°C)</option>
-                        <option value="F">Fahrenheit (°F)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="weatherRefresh">Refresh Interval (minutes)</label>
-                    <input type="number" id="weatherRefresh" value="30" min="5" max="120">
-                </div>
-                <div class="form-group">
-                    <label>Coordinates</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="weatherLat" placeholder="Latitude" readonly style="background: var(--background-secondary);">
-                        <input type="text" id="weatherLon" placeholder="Longitude" readonly style="background: var(--background-secondary);">
-                    </div>
-                    <div class="help-text">Coordinates are set automatically when you search for a location</div>
-                </div>
-            </div>
-
-            <div id="scheduleSettings" class="config-section" style="display: none;">
-                <h3>Content Schedule</h3>
-                <div class="help-text" style="margin-bottom: 1rem;">Schedule different content for specific times and days. Base content is used when no schedule matches.</div>
-                <div id="scheduleEntries"></div>
-                <button type="button" class="btn btn-secondary" onclick="addScheduleEntry()" style="margin-top: 0.5rem;">
-                    <i class="material-icons" style="font-size: 1rem; margin-right: 0.25rem;">add</i>
-                    Add Schedule
+    <!-- Preview Slide-out -->
+    <div class="preview-slideout" id="previewSlideout">
+        <div class="preview-slideout-header">
+            <span>Live Preview</span>
+            <div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="refreshPreview()" title="Refresh">
+                    <i class="material-icons">refresh</i>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="togglePreview()" title="Close">
+                    <i class="material-icons">close</i>
                 </button>
             </div>
-
-            <div id="clockSettings" class="config-section" style="display: none;">
-                <h3>Clock Settings</h3>
-                <div class="form-group">
-                    <label for="timeFormat">Time Format</label>
-                    <select id="timeFormat">
-                        <option value="24h">24 Hour (14:30:45)</option>
-                        <option value="12h">12 Hour (2:30:45 PM)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="dateFormat">Date Format</label>
-                    <select id="dateFormat">
-                        <option value="full">Full (Monday, June 22, 2025)</option>
-                        <option value="short">Short (Jun 22, 2025)</option>
-                        <option value="numeric">Numeric (22/06/2025)</option>
-                        <option value="iso">ISO (2025-06-22)</option>
-                        <option value="custom">Custom (DD/MM/YYYY)</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="config-section">
-                <h3>Background</h3>
-                <div class="form-group">
-                    <label>Background Type</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="zoneBgType" value="transparent" checked> Transparent</label>
-                        <label><input type="radio" name="zoneBgType" value="color"> Solid Color</label>
-                        <label><input type="radio" name="zoneBgType" value="glassmorphism"> Glassmorphism</label>
-                        <label><input type="radio" name="zoneBgType" value="image"> Image</label>
-                    </div>
-                </div>
-                
-                <div id="zoneBgColor" class="form-group" style="display: none;">
-                    <label for="zoneBackgroundColor">Background Color</label>
-                    <input type="color" id="zoneBackgroundColor" value="#000000">
-                    <label for="zoneBgOpacity">Background Opacity</label>
-                    <input type="range" id="zoneBgOpacity" min="0" max="1" step="0.1" value="0.8">
-                    <span id="zoneBgOpacityValue">80%</span>
-                </div>
-                
-                <div id="zoneBgGlass" class="form-group" style="display: none;">
-                    <label for="zoneBlur">Blur Amount (px)</label>
-                    <input type="range" id="zoneBlur" min="0" max="50" value="10">
-                    <span id="zoneBlurValue">10px</span>
-                    <label for="zoneGlassOpacity">Glass Opacity</label>
-                    <input type="range" id="zoneGlassOpacity" min="0" max="1" step="0.1" value="0.2">
-                    <span id="zoneGlassOpacityValue">20%</span>
-                </div>
-                
-                <div id="zoneBgImage" class="form-group" style="display: none;">
-                    <label for="zoneBackgroundImage">Upload Background Image</label>
-                    <input type="file" id="zoneBackgroundImage" accept="image/*">
-                    <div id="currentZoneImage"></div>
-                </div>
-            </div>
-            
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeZoneModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Zone</button>
-            </div>
-        </form>
+        </div>
+        <div class="preview-slideout-body">
+            <iframe id="livePreview" src="/player/{{ display[0] }}?preview=1"></iframe>
+        </div>
     </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/config.js') }}"></script>
 <script>
-// Initialize configuration page
 const displayId = {{ display[0] }};
 const layoutConfig = {{ display[3]|safe }};
 const backgroundConfig = {{ display[4]|safe }};
+const displayDescription = {{ (display[2] or '')|tojson }};
 
 window.addEventListener('DOMContentLoaded', function() {
-    initializeConfig(displayId, layoutConfig, backgroundConfig);
+    initConfigPage(displayId, layoutConfig, backgroundConfig, displayDescription);
 });
 </script>
 {% endblock %}
