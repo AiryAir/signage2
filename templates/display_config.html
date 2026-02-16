@@ -144,12 +144,19 @@
                     <label>Background Type</label>
                     <div class="radio-group">
                         <label><input type="radio" name="bgType" value="color" checked> Color</label>
+                        <label><input type="radio" name="bgType" value="gradient"> Gradient</label>
                         <label><input type="radio" name="bgType" value="image"> Image</label>
                     </div>
                 </div>
                 <div id="colorPicker" class="form-group">
                     <label for="bgColor">Background Color</label>
                     <input type="color" id="bgColor" value="#1a1a1a">
+                </div>
+                <div id="gradientPicker" class="form-group" style="display: none;">
+                    <label for="bgGradient">CSS Gradient</label>
+                    <input type="text" id="bgGradient" placeholder="linear-gradient(135deg, #0f0c29, #302b63, #24243e)" value="linear-gradient(135deg, #0f0c29, #302b63, #24243e)">
+                    <div id="gradientPreview" style="height: 40px; border-radius: var(--radius-md); margin-top: 0.5rem; border: 1px solid var(--border-color);"></div>
+                    <div class="help-text">Enter any valid CSS gradient value</div>
                 </div>
                 <div id="imagePicker" class="form-group" style="display: none;">
                     <label for="bgImage">Upload Image</label>

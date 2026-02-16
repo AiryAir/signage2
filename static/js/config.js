@@ -25,7 +25,11 @@ function initializeConfig(displayId, layoutConfig, backgroundConfig) {
     document.getElementById('orientationMode').value = layoutConfig.orientation || 'landscape';
     
     // Set background
-    if (backgroundConfig.type === 'color') {
+    if (backgroundConfig.type === 'gradient') {
+        document.querySelector('input[name="bgType"][value="gradient"]').checked = true;
+        document.getElementById('bgGradient').value = backgroundConfig.value || '';
+        showGradientPicker();
+    } else if (backgroundConfig.type === 'color') {
         document.querySelector('input[name="bgType"][value="color"]').checked = true;
         document.getElementById('bgColor').value = backgroundConfig.value;
         showColorPicker();
@@ -33,7 +37,7 @@ function initializeConfig(displayId, layoutConfig, backgroundConfig) {
         document.querySelector('input[name="bgType"][value="image"]').checked = true;
         showImagePicker();
         if (backgroundConfig.value) {
-            document.getElementById('currentImage').innerHTML = 
+            document.getElementById('currentImage').innerHTML =
                 `<img src="${backgroundConfig.value}" alt="Background" style="max-width: 200px; margin-top: 10px;">`;
         }
     }
@@ -66,15 +70,21 @@ function bindEvents() {
         radio.addEventListener('change', function() {
             if (this.value === 'color') {
                 showColorPicker();
+            } else if (this.value === 'gradient') {
+                showGradientPicker();
             } else {
                 showImagePicker();
             }
             updateBackground();
         });
     });
-    
+
     // Background value changes
     document.getElementById('bgColor').addEventListener('change', updateBackground);
+    document.getElementById('bgGradient').addEventListener('input', function() {
+        updateGradientPreview();
+        updateBackground();
+    });
     document.getElementById('bgImage').addEventListener('change', handleImageUpload);
     
     // Save button
@@ -111,12 +121,29 @@ function bindEvents() {
 
 function showColorPicker() {
     document.getElementById('colorPicker').style.display = 'block';
+    document.getElementById('gradientPicker').style.display = 'none';
     document.getElementById('imagePicker').style.display = 'none';
+}
+
+function showGradientPicker() {
+    document.getElementById('colorPicker').style.display = 'none';
+    document.getElementById('gradientPicker').style.display = 'block';
+    document.getElementById('imagePicker').style.display = 'none';
+    updateGradientPreview();
 }
 
 function showImagePicker() {
     document.getElementById('colorPicker').style.display = 'none';
+    document.getElementById('gradientPicker').style.display = 'none';
     document.getElementById('imagePicker').style.display = 'block';
+}
+
+function updateGradientPreview() {
+    const val = document.getElementById('bgGradient').value;
+    const preview = document.getElementById('gradientPreview');
+    if (preview && val) {
+        preview.style.background = val;
+    }
 }
 
 function updateBackground() {
@@ -126,6 +153,11 @@ function updateBackground() {
         currentBackground = {
             type: 'color',
             value: document.getElementById('bgColor').value
+        };
+    } else if (bgType === 'gradient') {
+        currentBackground = {
+            type: 'gradient',
+            value: document.getElementById('bgGradient').value
         };
     } else {
         currentBackground = {

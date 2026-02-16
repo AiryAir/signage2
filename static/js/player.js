@@ -189,7 +189,11 @@ function setupBackground() {
     body.style.backgroundImage = '';
     body.classList.remove('bg-color', 'bg-image');
 
-    if (bg.type === 'color') {
+    if (bg.type === 'gradient') {
+        body.style.background = bg.value;
+        body.classList.add('bg-color');
+        console.log('Applied global background gradient:', bg.value);
+    } else if (bg.type === 'color') {
         body.style.backgroundColor = bg.value;
         body.classList.add('bg-color');
         console.log('Applied global background color:', bg.value);

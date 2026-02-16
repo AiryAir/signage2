@@ -86,53 +86,76 @@ def init_database():
     cursor.execute('SELECT COUNT(*) FROM displays')
     if cursor.fetchone()[0] == 0:
         default_layout = json.dumps({
-            'grid': {'rows': 2, 'cols': 2},
+            'grid': {'rows': 2, 'cols': 3},
             'zones': [
                 {
-                    'id': 0, 
-                    'type': 'clock', 
-                    'content': '', 
+                    'id': 0,
+                    'type': 'clock',
+                    'content': '',
                     'opacity': 1.0,
-                    'font_family': 'Arial, sans-serif',
+                    'font_family': 'Inter, sans-serif',
                     'font_size': '16px',
-                    'background': {'type': 'transparent'},
+                    'background': {'type': 'glassmorphism', 'blur': 16, 'opacity': 0.12},
                     'date_format': 'full',
                     'time_format': '24h'
                 },
                 {
-                    'id': 1, 
-                    'type': 'iframe', 
-                    'content': '', 
+                    'id': 1,
+                    'type': 'weather',
+                    'content': '',
                     'opacity': 1.0,
-                    'font_family': 'Arial, sans-serif',
+                    'font_family': 'Inter, sans-serif',
                     'font_size': '16px',
-                    'background': {'type': 'transparent'}
+                    'background': {'type': 'glassmorphism', 'blur': 16, 'opacity': 0.12},
+                    'weather_location': 'London, England, United Kingdom',
+                    'weather_lat': '51.5085',
+                    'weather_lon': '-0.1257',
+                    'weather_units': 'C',
+                    'weather_refresh': 30
                 },
                 {
-                    'id': 2, 
-                    'type': 'announcement', 
-                    'content': 'Welcome to Digital Signage!', 
+                    'id': 2,
+                    'type': 'announcement',
+                    'content': 'Welcome to Digital Signage\nPowered by Flask & vanilla JS\nCustomize zones, layouts & widgets\nDrag, drop, and go live!',
                     'opacity': 1.0,
-                    'font_family': 'Arial, sans-serif',
-                    'font_size': '24px',
-                    'background': {'type': 'glassmorphism', 'blur': 10, 'opacity': 0.2}
+                    'font_family': 'Inter, sans-serif',
+                    'font_size': '22px',
+                    'background': {'type': 'glassmorphism', 'blur': 16, 'opacity': 0.12},
+                    'announcement_mode': 'crossfade',
+                    'announcement_interval': 4
                 },
                 {
-                    'id': 3, 
-                    'type': 'rss', 
-                    'content': '', 
+                    'id': 3,
+                    'type': 'rss',
+                    'content': 'https://feeds.bbci.co.uk/news/world/rss.xml',
                     'opacity': 1.0,
-                    'font_family': 'Arial, sans-serif',
+                    'font_family': 'Inter, sans-serif',
                     'font_size': '14px',
-                    'background': {'type': 'transparent'}
+                    'background': {'type': 'glassmorphism', 'blur': 16, 'opacity': 0.12},
+                    'rss_mode': 'rotate',
+                    'rss_interval': 6,
+                    'col_span': 2
+                },
+                {
+                    'id': 4,
+                    'type': 'timer',
+                    'content': '15',
+                    'opacity': 1.0,
+                    'font_family': 'Inter, sans-serif',
+                    'font_size': '48px',
+                    'background': {'type': 'glassmorphism', 'blur': 16, 'opacity': 0.12}
                 }
             ],
-            'global_font': 'Arial, sans-serif',
-            'top_bar': {'mode': 'visible', 'show_seconds': True}
+            'global_font': 'Inter, sans-serif',
+            'top_bar': {'mode': 'overlay', 'show_seconds': True},
+            'orientation': 'landscape'
         })
-        default_background = json.dumps({'type': 'color', 'value': '#1a1a1a'})
+        default_background = json.dumps({
+            'type': 'gradient',
+            'value': 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
+        })
         cursor.execute('INSERT INTO displays (name, description, layout_config, background_config) VALUES (?, ?, ?, ?)',
-                      ('Default Display', 'Default digital signage display', default_layout, default_background))
+                      ('Demo Display', 'A showcase of widgets with a gradient background', default_layout, default_background))
     
     conn.commit()
     conn.close()
@@ -321,48 +344,52 @@ def api_create_display():
         'grid': {'rows': 2, 'cols': 2},
         'zones': [
             {
-                'id': 0, 
-                'type': 'clock', 
-                'content': '', 
+                'id': 0,
+                'type': 'clock',
+                'content': '',
                 'opacity': 1.0,
-                'font_family': 'Arial, sans-serif',
+                'font_family': 'Inter, sans-serif',
                 'font_size': '16px',
-                'background': {'type': 'transparent'},
+                'background': {'type': 'glassmorphism', 'blur': 12, 'opacity': 0.15},
                 'date_format': 'full',
                 'time_format': '24h'
             },
             {
-                'id': 1, 
-                'type': 'iframe', 
-                'content': '', 
+                'id': 1,
+                'type': 'announcement',
+                'content': 'Configure this zone',
                 'opacity': 1.0,
-                'font_family': 'Arial, sans-serif',
+                'font_family': 'Inter, sans-serif',
+                'font_size': '20px',
+                'background': {'type': 'glassmorphism', 'blur': 12, 'opacity': 0.15}
+            },
+            {
+                'id': 2,
+                'type': 'empty',
+                'content': '',
+                'opacity': 1.0,
+                'font_family': 'Inter, sans-serif',
                 'font_size': '16px',
                 'background': {'type': 'transparent'}
             },
             {
-                'id': 2, 
-                'type': 'announcement', 
-                'content': 'Welcome!', 
+                'id': 3,
+                'type': 'empty',
+                'content': '',
                 'opacity': 1.0,
-                'font_family': 'Arial, sans-serif',
-                'font_size': '24px',
-                'background': {'type': 'glassmorphism', 'blur': 10, 'opacity': 0.2}
-            },
-            {
-                'id': 3, 
-                'type': 'timer', 
-                'content': '10', 
-                'opacity': 1.0,
-                'font_family': 'Arial, sans-serif',
-                'font_size': '48px',
+                'font_family': 'Inter, sans-serif',
+                'font_size': '16px',
                 'background': {'type': 'transparent'}
             }
         ],
-        'global_font': 'Arial, sans-serif',
-        'top_bar': {'mode': 'visible', 'show_seconds': True}
+        'global_font': 'Inter, sans-serif',
+        'top_bar': {'mode': 'visible', 'show_seconds': True},
+        'orientation': 'landscape'
     })
-    default_background = json.dumps({'type': 'color', 'value': '#1a1a1a'})
+    default_background = json.dumps({
+        'type': 'gradient',
+        'value': 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
+    })
 
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
