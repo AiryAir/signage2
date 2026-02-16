@@ -24,9 +24,11 @@
         
         <div id="errorMessage" class="error-message" style="display: none;"></div>
         
+        {% if show_default_hint %}
         <div class="help-text">
             <p>Default credentials: <strong>admin</strong> / <strong>admin123</strong></p>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

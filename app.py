@@ -205,7 +205,17 @@ def login():
         else:
             return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
     
-    return render_template('login.html')
+    # Check if default admin/admin123 is still in use
+    show_default_hint = False
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT password_hash FROM users WHERE username = ?', ('admin',))
+    row = cursor.fetchone()
+    conn.close()
+    if row and row[0] == hashlib.sha256(b'admin123').hexdigest():
+        show_default_hint = True
+
+    return render_template('login.html', show_default_hint=show_default_hint)
 
 @app.route('/logout')
 def logout():
